@@ -6,14 +6,14 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
     />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#0b1424" />
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <script>
       (() => {
         const LIGHT_BACKGROUND = "#ffffff";
-        const DARK_BACKGROUND = "#000000";
+        const DARK_BACKGROUND = "#0b1424";
         const CUSTOM_THEMES_STORAGE_KEY = "t3code:themes:v1";
         const THEME_FOLLOW_SYSTEM_STORAGE_KEY = "t3code:theme-follow-system";
         const THEME_APPEARANCE_MODE_STORAGE_KEY = "t3code:theme-appearance-mode";
@@ -22,12 +22,12 @@
           light: {
             background: "#ffffff",
             foreground: "#262626",
-            accent: "#4f46e5",
+            accent: "#0a76ab",
           },
           dark: {
-            background: "#000000",
+            background: "#0b1424",
             foreground: "#f5f5f5",
-            accent: "#818cf8",
+            accent: "#62c6f2",
           },
         };
         // These are the runtime defaults used to complete a custom palette
@@ -399,11 +399,17 @@
         background: #ffffff;
         color: #262626;
         font-family:
-          -apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui, sans-serif;
+          "Anthropic Sans",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Inter Variable",
+          "Segoe UI",
+          system-ui,
+          sans-serif;
       }
 
       html.dark body {
-        background: #000000;
+        background: #0b1424;
         color: #f5f5f5;
       }
 
@@ -462,7 +468,7 @@
 
       html.dark #boot-error {
         --boot-error-fg: #f5f5f5;
-        --boot-error-bg: #000000;
+        --boot-error-bg: #0b1424;
       }
 
       html[data-theme-selected="true"] #boot-error {
@@ -668,13 +674,13 @@
         white-space: nowrap;
       }
     </style>
-    <title>T3 Code (Beta)</title>
+    <title>meeseeks</title>
   </head>
   <body>
     <div id="root">
       <div id="boot-shell">
-        <div id="boot-shell-card" aria-label="T3 Code splash screen">
-          <img id="boot-shell-logo" src="/apple-touch-icon.png" alt="T3 Code" />
+        <div id="boot-shell-card" aria-label="meeseeks splash screen">
+          <img id="boot-shell-logo" src="/apple-touch-icon.png" alt="meeseeks" />
         </div>
       </div>
     </div>

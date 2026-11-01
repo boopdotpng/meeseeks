@@ -65,6 +65,7 @@ import { useUiStateStore } from "../../uiStateStore";
 import { useThreadSelectionStore } from "../../threadSelectionStore";
 import { useNowMinute } from "../../hooks/useNowMinute";
 import { useNowSecond } from "../../hooks/useNowSecond";
+import { meeseeksStatusLabel, meeseeksWorkingLabel } from "../../meeseeksCopy";
 import { vcsEnvironment } from "../../state/vcs";
 import { useEnvironmentQuery } from "../../state/query";
 import { readEnvironmentScope, useEnvironmentScope } from "../../state/session";
@@ -172,6 +173,13 @@ function WorkingDurationLabel(props: { startedMs: number }) {
   return (
     <span className="tabular-nums">{formatWorkingDurationLabel(nowMs - props.startedMs)}</span>
   );
+}
+
+function TopStatusText(props: { label: string; startedAt: string | null }) {
+  const nowMs = useNowSecond();
+  return props.label === "Working"
+    ? meeseeksWorkingLabel(props.startedAt, nowMs)
+    : meeseeksStatusLabel(props.label);
 }
 
 function terminalProcessLabel(count: number): string {
@@ -743,7 +751,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
             ? {
                 label: "Input",
                 icon: "input" as const,
-                className: "text-indigo-600 dark:text-indigo-300",
+                className: "text-pink-600 dark:text-pink-300",
               }
             : status === "request"
               ? {
@@ -1302,7 +1310,10 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                         )}
                       >
                         <TopStatusIcon icon={topStatus.icon} className="size-3" />
-                        {topStatus.label}
+                        <TopStatusText
+                          label={topStatus.label}
+                          startedAt={resolveWorkingStartedAt(thread)}
+                        />
                       </span>
                     ) : (
                       <span className="text-xs">
@@ -1491,7 +1502,10 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                           {/* Not a live region: a collapsed sidebar is inert, so
                             BackgroundThreadAnnouncer and the open thread's
                             timeline speak status changes instead. */}
-                          {topStatus.label}
+                          <TopStatusText
+                            label={topStatus.label}
+                            startedAt={resolveWorkingStartedAt(thread)}
+                          />
                           {status === "working" ? (
                             <span aria-hidden>
                               <WorkingDuration startedAt={resolveWorkingStartedAt(thread)} />

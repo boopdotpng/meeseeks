@@ -87,16 +87,16 @@ export function startThreadNotifications(
     };
     const title =
       kind === "completion"
-        ? "Thread completed"
+        ? "All done! *poof*"
         : status === "approval"
-          ? "Approval needed"
+          ? "Ooh, need your OK!"
           : status === "limited"
             ? "Usage limit reached"
             : status === "failed"
-              ? "Thread failed"
+              ? "Existence is pain"
               : status === "request"
                 ? "Guest request"
-                : "Input needed";
+                : "Ooh, can I ask you something?";
     if (hasNotificationSound(mode)) {
       void playNotificationSound(kind, () =>
         hasNotificationSound(getClientSettings().notificationMode),

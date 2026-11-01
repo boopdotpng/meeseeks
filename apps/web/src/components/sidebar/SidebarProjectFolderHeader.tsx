@@ -115,7 +115,7 @@ export const SidebarProjectFolderHeader = memo(function SidebarProjectFolderHead
           >
             <SquarePenIcon aria-hidden />
           </TooltipTrigger>
-          <TooltipPopup>New thread in {group.displayName}</TooltipPopup>
+          <TooltipPopup>Summon a Meeseeks in {group.displayName}</TooltipPopup>
         </Tooltip>
       </span>
     </li>

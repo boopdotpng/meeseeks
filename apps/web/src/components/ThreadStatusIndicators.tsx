@@ -6,6 +6,8 @@ import {
 } from "@t3tools/client-runtime/environment";
 import { useSupportsMultiplePullRequests } from "~/hooks/useSupportsMultiplePullRequests";
 import { useStableCallback } from "~/hooks/useStableCallback";
+import { tickTextContent } from "~/lib/tickTextContent";
+import { meeseeksStatusLabel, meeseeksWorkingLabel } from "~/meeseeksCopy";
 
 import { pullRequestDetailToVcsStatus } from "@t3tools/client-runtime/state/pull-requests";
 import {
@@ -43,6 +45,7 @@ import {
   pullRequestMatchesSearchQuery,
   resolveThreadLastVisitedAt,
   resolveThreadStatusPill,
+  resolveWorkingStartedAt,
   type ThreadStatusPill,
   useRetainedValue,
   useSidebarRowSubscriptionLease,
@@ -605,11 +608,16 @@ export function ThreadWorktreeIndicator({
 
 function ThreadStatusLabel({
   status,
+  startedAt,
   compact = false,
 }: {
   status: ThreadStatusPill;
+  startedAt: string | null;
   compact?: boolean;
 }) {
+  const working = status.label === "Working";
+  const formatLabel = (nowMs: number) =>
+    working ? meeseeksWorkingLabel(startedAt, nowMs) : meeseeksStatusLabel(status.label);
   if (compact) {
     return (
       <Tooltip>
@@ -628,7 +636,9 @@ function ThreadStatusLabel({
             }`}
           />
         </TooltipTrigger>
-        <TooltipPopup side="top">{status.label}</TooltipPopup>
+        <TooltipPopup side="top">
+          <span ref={tickTextContent(formatLabel, working)} />
+        </TooltipPopup>
       </Tooltip>
     );
   }
@@ -649,9 +659,11 @@ function ThreadStatusLabel({
             status.pulse ? "motion-safe:animate-status-pulse" : ""
           }`}
         />
-        <span className="hidden md:inline">{status.label}</span>
+        <span ref={tickTextContent(formatLabel, working)} className="hidden md:inline" />
       </TooltipTrigger>
-      <TooltipPopup side="top">{status.label}</TooltipPopup>
+      <TooltipPopup side="top">
+        <span ref={tickTextContent(formatLabel, working)} />
+      </TooltipPopup>
     </Tooltip>
   );
 }
@@ -741,7 +753,9 @@ export function ThreadRowLeadingStatus({ thread }: { thread: SidebarThreadSummar
           aria-label={`${changeRequestTerminologyForUrl(pendingLink.url).shortLabel} #${pendingLink.number}, status pending`}
         />
       ) : null}
-      {threadStatus ? <ThreadStatusLabel status={threadStatus} /> : null}
+      {threadStatus ? (
+        <ThreadStatusLabel status={threadStatus} startedAt={resolveWorkingStartedAt(thread)} />
+      ) : null}
     </span>
   );
 }

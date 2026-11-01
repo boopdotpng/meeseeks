@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="tileFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0c0c0e"/>
+      <stop offset="1" stop-color="#000"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.22"/>
+      <stop offset="0.5" stop-color="#fff" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="iris" gradientUnits="userSpaceOnUse" x1="290" y1="260" x2="734" y2="764">
+      <stop offset="0" stop-color="#7cf7ff"/>
+      <stop offset="0.45" stop-color="#9b7bff"/>
+      <stop offset="1" stop-color="#ff6fb5"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#8f7bff" stop-opacity="0.28"/>
+      <stop offset="0.6" stop-color="#5a3dff" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#5a3dff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="core" cx="0.42" cy="0.38" r="0.6">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset="1" stop-color="#e6e0ff"/>
+    </radialGradient>
+    <clipPath id="tile">
+      <rect x="100" y="100" width="824" height="824" rx="184"/>
+    </clipPath>
+  </defs>
+
+  <rect x="100" y="100" width="824" height="824" rx="184" fill="url(#tileFill)"/>
+  <g clip-path="url(#tile)">
+    <circle cx="512" cy="512" r="380" fill="url(#glow)"/>
+  </g>
+
+  <g stroke="url(#iris)" stroke-linecap="round" fill="none">
+    <g stroke-width="58">
+      <path d="M512 252 V392"/>
+      <path d="M512 632 V772"/>
+      <path d="M252 512 H392"/>
+      <path d="M632 512 H772"/>
+    </g>
+    <g stroke-width="44">
+      <path d="M328 328 L414 414"/>
+      <path d="M610 610 L696 696"/>
+      <path d="M696 328 L610 414"/>
+      <path d="M414 610 L328 696"/>
+    </g>
+  </g>
+  <circle cx="512" cy="512" r="70" fill="url(#core)"/>
+
+  <rect x="101.5" y="101.5" width="821" height="821" rx="182.5" fill="none" stroke="url(#rim)" stroke-width="3"/>
+</svg>

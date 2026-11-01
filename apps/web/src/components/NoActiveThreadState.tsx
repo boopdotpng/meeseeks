@@ -22,9 +22,9 @@ export function NoActiveThreadState() {
         <Empty className="flex-1">
           <div className="w-full max-w-lg px-8 py-12">
             <EmptyHeader className="max-w-none">
-              <EmptyTitle>Pick a thread to continue</EmptyTitle>
+              <EmptyTitle>Press the button</EmptyTitle>
               <EmptyDescription>
-                Select an existing thread or create a new one to get started.
+                Check on a Meeseeks already on the job, or summon a new one.
               </EmptyDescription>
             </EmptyHeader>
           </div>

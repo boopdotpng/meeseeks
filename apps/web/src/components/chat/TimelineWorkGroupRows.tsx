@@ -53,6 +53,7 @@ import {
   toolGroupSummaryIconName,
   workEntryIconName,
 } from "./TimelineWorkEntryRow.logic";
+import { meeseeksWorkingLabel } from "../../meeseeksCopy";
 import { formatWorkingTimerNow } from "./TimelineWorkGroupRows.logic";
 
 export const WorkGroupSection = memo(function WorkGroupSection({
@@ -118,6 +119,10 @@ function WorkingTimer({ createdAt }: { createdAt: string }) {
       className="tabular-nums"
     />
   );
+}
+
+function MeeseeksWorkingLabel({ createdAt }: { createdAt: string }) {
+  return <span ref={tickTextContent((nowMs) => meeseeksWorkingLabel(createdAt, nowMs), true)} />;
 }
 
 const compactWorkEntryHeight = 24;
@@ -286,10 +291,10 @@ export function WorkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind: 
     <CompactingLabel createdAt={row.createdAt} />
   ) : row.createdAt ? (
     <>
-      Working for <WorkingTimer createdAt={row.createdAt} />
+      <MeeseeksWorkingLabel createdAt={row.createdAt} /> <WorkingTimer createdAt={row.createdAt} />
     </>
   ) : (
-    "Working..."
+    "On it!"
   );
   return (
     <div className="border-b border-border/60 pb-2 pt-1">

@@ -240,7 +240,7 @@ export function buildThreadActionMenuItems(
     { id: "project-settings", label: "Project settings", icon: "settings" },
     {
       id: "archive",
-      label: "Archive thread",
+      label: "Poof",
       icon: "archive",
       disabled: state.isRunning,
       separatorBefore: true,

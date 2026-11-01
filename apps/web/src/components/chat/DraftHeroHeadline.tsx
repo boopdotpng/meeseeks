@@ -8,6 +8,7 @@ import { useAtomValue } from "@effect/atom-react";
 import { useRef, useState } from "react";
 
 import { openCommandPalette } from "~/commandPaletteBus";
+import { MeeseeksGreeting } from "../MeeseeksGreeting";
 import { shortcutLabelForCommand } from "~/keybindings";
 import { primaryServerKeybindingsAtom } from "~/state/server";
 import { useNewThreadHandler } from "~/hooks/useHandleNewThread";
@@ -421,7 +422,7 @@ export function DraftHeroHeadline({
       ) : (
         <h1 className="w-full text-center font-normal text-2xl text-foreground tracking-tight sm:text-3xl">
           {isScratchDraft ? (
-            <>What should we work on?</>
+            <MeeseeksGreeting />
           ) : canChooseProject ? (
             <>{projectSelector} to start</>
           ) : (

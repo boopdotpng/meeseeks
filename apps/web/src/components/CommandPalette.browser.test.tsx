@@ -11,7 +11,7 @@ function setup() {
 }
 
 describe("CommandPalette open intents", () => {
-  it("opens New thread in... with focus in the search input, not the Back button", async () => {
+  it("opens Summon a Meeseeks in... with focus in the search input, not the Back button", async () => {
     setup();
     await using _screen = await render(<CommandPalette>{null}</CommandPalette>);
 
