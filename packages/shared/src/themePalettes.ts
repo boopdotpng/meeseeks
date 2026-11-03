@@ -1,3 +1,5 @@
+export const DEFAULT_THEME_ID = "meeseeks";
+
 export const BUILT_IN_THEME_IDS = ["t3-chat", "grove", "ocean", "ember", "iris"] as const;
 
 export const MOBILE_DEFAULT_THEME_ID = "t3-code";
@@ -9,6 +11,7 @@ export const RESERVED_THEME_IDS: ReadonlySet<string> = new Set([
   "system",
   "light",
   "dark",
+  DEFAULT_THEME_ID,
   ...BUILT_IN_THEME_IDS,
   "t3-chat-dark",
   "t3-grove",
@@ -231,6 +234,30 @@ export const T3_CODE_DARK_THEME_COLORS: ThemeColors = {
   terminalSelection: "#343a47",
   terminalScrollbar: "#222222",
   terminalScrollbarHover: "#363636",
+};
+
+const MEESEEKS_THEME: ThemeDefinition = {
+  id: DEFAULT_THEME_ID,
+  label: "meeseeks",
+  appearance: "dark",
+  colors: {
+    ...T3_CODE_DARK_THEME_COLORS,
+    canvas: "#000000",
+    chrome: "#000000",
+    toolbar: "#000000",
+    sidebarControlSurface: "#000000",
+    focus: "#62c6f2",
+    accent: "#62c6f2",
+    accentForeground: "#06121f",
+    update: "#62c6f2",
+    updateForeground: "#62c6f2",
+    updateSurface: "#0d2230",
+    messageAction: "#62c6f2",
+    messageActionForeground: "#06121f",
+    messageActionHover: "#4fb4e0",
+    terminalBackground: "#000000",
+    terminalCursor: "#62c6f2",
+  },
 };
 
 export const T3_CHAT_THEME: ThemeDefinition = {
@@ -909,6 +936,7 @@ export const IRIS_THEME: ThemeDefinition = {
 };
 
 export const BUILT_IN_THEMES: ReadonlyArray<ThemeDefinition> = [
+  MEESEEKS_THEME,
   T3_CHAT_THEME,
   GROVE_THEME,
   OCEAN_THEME,

@@ -1114,8 +1114,6 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 
 :root {
   color-scheme: light;
-  --meeseeks-navy: #0b1424;
-  --meeseeks-navy-raised: #111c31;
   --radius: 0.5rem;
   --background: var(--color-zinc-25);
   --app-chrome-background: var(--background);
@@ -1131,7 +1129,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --card-foreground: var(--color-zinc-900);
   --popover: var(--color-white);
   --popover-foreground: var(--color-zinc-900);
-  --primary: #0a76ab;
+  --primary: oklch(0.488 0.217 264);
   --primary-foreground: var(--color-white);
   --secondary: var(--color-zinc-50);
   --secondary-foreground: var(--color-zinc-800);
@@ -1190,17 +1188,17 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
 
   @variant dark {
     color-scheme: dark;
-    /* The canvas is icon navy, matching the sidebar. Cards, popovers, and the composer sit one
-       step lighter. Borders and hover states provide separation without milky gray fills. */
-    --background: var(--meeseeks-navy);
-    --surface-raised: var(--meeseeks-navy-raised);
+    /* The canvas is true black, matching the sidebar. Raised surfaces keep the tone they had
+       over neutral-950, so cards, popovers, and the composer still lift. Borders and hover
+       states provide separation without milky gray fills. */
+    --background: #000;
+    --surface-raised: color-mix(in srgb, var(--color-neutral-950) 97%, var(--color-white));
     --foreground: var(--color-neutral-100);
-    --card: var(--meeseeks-navy-raised);
+    --card: color-mix(in srgb, var(--color-neutral-950) 97%, var(--color-white));
     --card-foreground: var(--color-neutral-100);
-    --popover: var(--meeseeks-navy-raised);
+    --popover: color-mix(in srgb, var(--color-neutral-950) 97%, var(--color-white));
     --popover-foreground: var(--color-neutral-100);
-    --primary: #62c6f2;
-    --primary-foreground: var(--meeseeks-navy);
+    --primary: oklch(0.571 0.21 264);
     --secondary: --alpha(var(--color-white) / 3%);
     --secondary-foreground: var(--color-neutral-100);
     --muted: --alpha(var(--color-white) / 3%);
@@ -1208,7 +1206,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
     --accent: --alpha(var(--color-white) / 4%);
     --accent-foreground: var(--color-neutral-100);
     /* A user turn sits above the composer tone, level with the selected sidebar row. */
-    --message-surface: color-mix(in srgb, var(--meeseeks-navy-raised) 92%, var(--color-white));
+    --message-surface: color-mix(in srgb, var(--color-neutral-950) 92%, var(--color-white));
     --error: color-mix(in srgb, var(--color-red-500) 90%, var(--color-white));
     --error-foreground: var(--color-red-400);
     --tool-error-icon: #fca5a5;
@@ -1257,13 +1255,13 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --sidebar-stage-fade: var(--sidebar);
 
   @variant dark {
-    --background: var(--meeseeks-navy);
+    --background: #000;
     --foreground: #f1f3f7;
-    --card: var(--meeseeks-navy);
+    --card: #000;
     --card-foreground: var(--foreground);
-    --accent: #1b2840;
+    --accent: #191a1d;
     --accent-foreground: #f7f9ff;
-    --muted: var(--meeseeks-navy-raised);
+    --muted: #0a0a0a;
     --muted-foreground: #a3a3a3;
     --border: rgb(255 255 255 / 8%);
     --input: rgb(255 255 255 / 18%);

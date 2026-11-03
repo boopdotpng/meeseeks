@@ -6,14 +6,14 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
     />
-    <meta name="theme-color" content="#0b1424" />
+    <meta name="theme-color" content="#000000" />
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <script>
       (() => {
         const LIGHT_BACKGROUND = "#ffffff";
-        const DARK_BACKGROUND = "#0b1424";
+        const DARK_BACKGROUND = "#000000";
         const CUSTOM_THEMES_STORAGE_KEY = "t3code:themes:v1";
         const THEME_FOLLOW_SYSTEM_STORAGE_KEY = "t3code:theme-follow-system";
         const THEME_APPEARANCE_MODE_STORAGE_KEY = "t3code:theme-appearance-mode";
@@ -22,12 +22,12 @@
           light: {
             background: "#ffffff",
             foreground: "#262626",
-            accent: "#0a76ab",
+            accent: "#4f46e5",
           },
           dark: {
-            background: "#0b1424",
+            background: "#000000",
             foreground: "#f5f5f5",
-            accent: "#62c6f2",
+            accent: "#818cf8",
           },
         };
         // These are the runtime defaults used to complete a custom palette
@@ -51,6 +51,14 @@
         // Keep this small boot-time copy in sync with the built-in palettes so
         // the selected theme is visible before the app has mounted.
         const BUILT_IN_THEME_PALETTES = {
+          meeseeks: {
+            dark: {
+              background: "#000000",
+              foreground: "#f5f5f5",
+              accent: "#62c6f2",
+              chrome: "#000000",
+            },
+          },
           "t3-chat": {
             light: {
               background: "oklch(0.982446 0.010114 325.653)",
@@ -132,6 +140,7 @@
           "system",
           "light",
           "dark",
+          "meeseeks",
           "t3-chat",
           "grove",
           "ocean",
@@ -213,6 +222,13 @@
         };
 
         try {
+          // One-time move onto the meeseeks default, so choosing T3 Code later sticks.
+          if (window.localStorage.getItem("meeseeks:default-theme-adopted") === null) {
+            window.localStorage.setItem("meeseeks:default-theme-adopted", "1");
+            if (window.localStorage.getItem("t3code:theme") === "system") {
+              window.localStorage.setItem("t3code:theme", "meeseeks");
+            }
+          }
           const storedTheme = window.localStorage.getItem("t3code:theme");
           const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
           const LEGACY_THEME_IDS = {
@@ -224,7 +240,7 @@
           };
           const isLegacyT3ChatDark = storedTheme === "t3-chat-dark";
           const themeId =
-            storedTheme === null ? "" : (LEGACY_THEME_IDS[storedTheme] ?? storedTheme);
+            storedTheme === null ? "meeseeks" : (LEGACY_THEME_IDS[storedTheme] ?? storedTheme);
           const legacyMode = isLegacyT3ChatDark ? "dark" : null;
           const builtInModes = BUILT_IN_THEME_MODES[themeId] ?? null;
           const customTheme = builtInModes ? null : findCustomTheme(themeId);
@@ -240,9 +256,13 @@
             storedTheme === "dark" ||
             storedTheme === "system" ||
             themeModes !== null;
-          const theme = isKnownTheme && storedTheme ? storedTheme : "system";
+          const theme = isKnownTheme ? (storedTheme ?? "meeseeks") : "system";
           const isThemed = isKnownTheme && themeModes !== null;
-          const baseAppearance = customTheme ? customTheme.appearance : "light";
+          const baseAppearance = customTheme
+            ? customTheme.appearance
+            : builtInModes?.length === 1
+              ? builtInModes[0]
+              : "light";
           const systemMode = prefersDark ? "dark" : "light";
           const storedAppearanceMode = window.localStorage.getItem(
             THEME_APPEARANCE_MODE_STORAGE_KEY,
@@ -409,7 +429,7 @@
       }
 
       html.dark body {
-        background: #0b1424;
+        background: #000000;
         color: #f5f5f5;
       }
 
@@ -468,7 +488,7 @@
 
       html.dark #boot-error {
         --boot-error-fg: #f5f5f5;
-        --boot-error-bg: #0b1424;
+        --boot-error-bg: #000000;
       }
 
       html[data-theme-selected="true"] #boot-error {

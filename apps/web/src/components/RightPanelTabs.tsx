@@ -1,3 +1,4 @@
+import { TERMINAL_UI_ENABLED } from "../terminalAvailability";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import {
@@ -345,14 +346,18 @@ function RightPanelEmptyState(props: {
       disabledReason: SURFACE_UNAVAILABLE_HINTS.browser,
       onClick: props.onAddBrowser,
     },
-    {
-      label: "Terminal",
-      icon: TerminalSquare,
-      shortcut: "T",
-      available: props.terminalAvailable,
-      disabledReason: SURFACE_UNAVAILABLE_HINTS.terminal,
-      onClick: props.onAddTerminal,
-    },
+    ...(TERMINAL_UI_ENABLED
+      ? [
+          {
+            label: "Terminal",
+            icon: TerminalSquare,
+            shortcut: "T",
+            available: props.terminalAvailable,
+            disabledReason: SURFACE_UNAVAILABLE_HINTS.terminal,
+            onClick: props.onAddTerminal,
+          },
+        ]
+      : []),
     {
       label: "Files",
       icon: Files,
@@ -1099,14 +1104,18 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
       disabledReason: SURFACE_DISABLED_REASONS.browser,
       onClick: props.onAddBrowser,
     },
-    {
-      label: "Terminal",
-      icon: TerminalSquare,
-      shortcut: "T",
-      available: props.terminalAvailable,
-      disabledReason: SURFACE_DISABLED_REASONS.terminal,
-      onClick: props.onAddTerminal,
-    },
+    ...(TERMINAL_UI_ENABLED
+      ? [
+          {
+            label: "Terminal",
+            icon: TerminalSquare,
+            shortcut: "T",
+            available: props.terminalAvailable,
+            disabledReason: SURFACE_DISABLED_REASONS.terminal,
+            onClick: props.onAddTerminal,
+          },
+        ]
+      : []),
     {
       label: "Files",
       icon: Files,

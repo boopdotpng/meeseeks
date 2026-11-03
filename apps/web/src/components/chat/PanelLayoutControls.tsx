@@ -1,3 +1,4 @@
+import { TERMINAL_UI_ENABLED } from "../../terminalAvailability";
 import { PanelBottomIcon, PanelRightIcon, SquareMenuIcon } from "lucide-react";
 import { Maximize2, Minimize2 } from "lucide";
 import { MorphIcon } from "~/components/MorphIcon";
@@ -83,7 +84,7 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
       data-panel-layout-controls
     >
       {showThreadPanelControl ? threadPanelControl : null}
-      {showTerminalControl ? (
+      {TERMINAL_UI_ENABLED && showTerminalControl ? (
         <Tooltip>
           <TooltipTrigger render={<span className="flex shrink-0" />}>
             <Toggle

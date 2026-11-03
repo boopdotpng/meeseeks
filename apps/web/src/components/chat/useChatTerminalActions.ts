@@ -1,3 +1,4 @@
+import { TERMINAL_UI_ENABLED } from "../../terminalAvailability";
 import type {
   EnvironmentProject,
   EnvironmentThreadShell,
@@ -403,6 +404,7 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
   // A focused right-panel terminal takes the split/new/close chords; otherwise they act on the drawer.
   const shortcuts = {
     "terminal.toggle": () => {
+      if (!TERMINAL_UI_ENABLED) return false;
       if (
         !terminalUiState.terminalOpen &&
         !readEnvironmentScope(environmentId, AuthTerminalReadScope) &&
@@ -412,13 +414,13 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
       toggleTerminalVisibility();
     },
     "terminal.split": ({ terminalFocusOwner }) => {
-      if (!hasTerminalWriteAccess()) return false;
+      if (!TERMINAL_UI_ENABLED || !hasTerminalWriteAccess()) return false;
       if (terminalFocusOwner === "right-panel") return void splitPanelTerminal();
       openTerminalIfClosed();
       splitTerminal();
     },
     "terminal.splitVertical": ({ terminalFocusOwner }) => {
-      if (!hasTerminalWriteAccess()) return false;
+      if (!TERMINAL_UI_ENABLED || !hasTerminalWriteAccess()) return false;
       if (terminalFocusOwner === "right-panel") return void splitPanelTerminal("vertical");
       openTerminalIfClosed();
       splitTerminal("vertical");
@@ -432,7 +434,7 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
       if (terminalUiState.terminalOpen) requestCloseTerminal(terminalUiState.activeTerminalId);
     },
     "terminal.new": ({ terminalFocusOwner }) => {
-      if (!hasTerminalWriteAccess()) return false;
+      if (!TERMINAL_UI_ENABLED || !hasTerminalWriteAccess()) return false;
       if (terminalFocusOwner === "right-panel") return void addTerminalSurface();
       openTerminalIfClosed();
       createNewTerminal();
