@@ -139,9 +139,28 @@ export const layerExecutor: Layer.Layer<
                 ),
               );
           case "provider-turn.start":
-            return providerTurnStart
-              .start({ threadId: effect.threadId, runId: effect.request.runId, willRetry })
+            return threads
+              .dispatch({
+                type: "run.absorb-queued",
+                commandId: CommandId.make(`command:absorb-queued:${effect.id}`),
+                threadId: effect.threadId,
+                runId: effect.request.runId,
+              })
               .pipe(
+                // Folding is a nicety; the turn must still start without it.
+                Effect.catch((cause) =>
+                  Effect.logWarning("orchestration-v2.effect-worker.absorb-queued-failed", {
+                    threadId: effect.threadId,
+                    cause,
+                  }),
+                ),
+                Effect.andThen(
+                  providerTurnStart.start({
+                    threadId: effect.threadId,
+                    runId: effect.request.runId,
+                    willRetry,
+                  }),
+                ),
                 Effect.mapError(
                   (cause) =>
                     new OrchestrationEffectExecutionError({
@@ -291,12 +310,17 @@ export const layerExecutor: Layer.Layer<
                         ...(message.delegatedCompletion === undefined
                           ? {}
                           : { modelSelection: run.modelSelection }),
+                        // "auto" joins a follow-up already running or queues behind one
+                        // starting, so several missed steers end up in one turn.
                         dispatchMode: {
                           type:
                             message.delegatedCompletion === undefined
                               ? "start_immediately"
                               : "queue_after_active",
                         },
+                        ...(message.delegatedCompletion === undefined
+                          ? { deliveryIntent: "auto" as const }
+                          : {}),
                         createdBy: message.createdBy,
                         creationSource: message.creationSource,
                         ...(message.delegatedCompletion === undefined

@@ -2478,7 +2478,8 @@ describe("orchestration v2 provider switching", () => {
                   },
                 },
                 layerRegistry,
-                { databaseLayer: layerDatabase },
+                // Each queued Codex message must run as its own turn before the handoff.
+                { databaseLayer: layerDatabase, batchQueuedMessages: false },
               ),
               layerOutboxProvided,
             ),

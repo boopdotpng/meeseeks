@@ -946,7 +946,7 @@ it.effect("restarts the turn for an image when native steering takes text only",
   ),
 );
 
-it.effect("starts a steer that missed the turn on the saved next-turn selection", () =>
+it.effect("starts steers that missed the turn together on the saved next-turn selection", () =>
   Effect.scoped(
     Effect.gen(function* () {
       const { events, started, steered, layer, startFirstTurn } = yield* nextTurnSelectionHarness(
@@ -963,6 +963,18 @@ it.effect("starts a steer that missed the turn on the saved next-turn selection"
           threadId,
           messageId: MessageId.make("message:steer"),
           text: "late steer",
+          attachments: [],
+          modelSelection: composerSelection,
+          dispatchMode: { type: "steer_active", targetRunId: first.runId },
+          createdBy: "user",
+          creationSource: "web",
+        });
+        yield* orchestrator.dispatch({
+          type: "message.dispatch",
+          commandId: CommandId.make("steer-2"),
+          threadId,
+          messageId: MessageId.make("message:steer-2"),
+          text: "second late steer",
           attachments: [],
           modelSelection: composerSelection,
           dispatchMode: { type: "steer_active", targetRunId: first.runId },
@@ -1005,6 +1017,9 @@ it.effect("starts a steer that missed the turn on the saved next-turn selection"
         assert.deepEqual(steered, []);
         assert.equal(started.length, 2);
         assert.equal(started[1]?.message.messageId, MessageId.make("message:steer"));
+        assert.include(started[1]?.message.text, "late steer");
+        assert.include(started[1]?.message.text, "second late steer");
+        assert.isFalse(projection.runs.some((run) => run.status === "queued"));
         assert.deepEqual(started[1]?.modelSelection, composerSelection);
         assert.deepEqual(projection.thread.modelSelection, composerSelection);
       }).pipe(Effect.provide(layer));
@@ -1614,11 +1629,16 @@ it.effect.each(["next", "/goal ship it"])(
               (item) => item.type === "run_interrupt_request" && item.runId === compactRun.id,
             ),
           );
-          assert.deepEqual((yield* read(threadId)).queue, ["queued"]);
-          assert.deepEqual(
-            started.map((turn) => turn.message.text),
-            ["first", "/compact", promoted],
-          );
+          // A plain promoted message takes the rest of the queue with it; a goal goes alone.
+          const batched = !promoted.startsWith("/");
+          assert.deepEqual((yield* read(threadId)).queue, batched ? [] : ["queued"]);
+          assert.deepEqual(started.map((turn) => turn.message.text).slice(0, 2), [
+            "first",
+            "/compact",
+          ]);
+          const nextText = started[2]?.message.text ?? "";
+          assert.isTrue(nextText.includes(promoted));
+          assert.equal(nextText.includes("queued"), batched);
         }).pipe(Effect.provide(layer));
       }),
     ),

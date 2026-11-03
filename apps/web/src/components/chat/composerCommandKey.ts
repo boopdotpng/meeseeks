@@ -22,6 +22,7 @@ import { type ReviewCommentContext } from "../../reviewCommentContext";
 import { composerTargetKey } from "../../composerDraftStore";
 import {
   type ComposerListEdit,
+  emptyListItemRemoval,
   listContinuationForEnter,
   listIndentForTab,
   listOutdentForTab,
@@ -241,6 +242,17 @@ export function composerCommandKeyHandler(input: {
     }
     if ((key === "ArrowUp" || key === "ArrowDown") && submissionIntent === null) {
       return navigatePromptHistory(key === "ArrowUp" ? "backward" : "forward", event);
+    }
+    // Plain Enter keeps a list going and sends once the list ends on an empty item.
+    if (
+      submissionIntent === "foreground" &&
+      key === "Enter" &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !applyListEdit(event, emptyListItemRemoval)
+    ) {
+      if (isTaskItem) return false;
+      if (applyListEdit(event, listContinuationForEnter)) return true;
     }
     if (submissionIntent) {
       submitComposer(

@@ -141,19 +141,21 @@ it.each([
     "belongs to a previous attempt",
     [{ runAttemptId: RunAttemptId.make("previous-attempt"), status: "running" }],
   ],
-])("queues only automatic delivery when the active run's provider turn %s", (_, providerTurns) => {
+])("queues auto and steer delivery when the active run's provider turn %s", (_, providerTurns) => {
   const projection = {
     ...dispatchProjection(baseCapabilities),
     providerTurns,
   } as unknown as OrchestrationV2ThreadProjection;
-  assert.deepEqual(
-    CommandPolicy.resolveMessageDispatchIntent(projection, { type: "start_immediately" }, "auto"),
-    { type: "queue_after_active" },
-  );
-  assert.deepEqual(
-    CommandPolicy.resolveMessageDispatchIntent(projection, { type: "start_immediately" }, "steer"),
-    { type: "steer_active", targetRunId: activeRunId },
-  );
+  for (const deliveryIntent of ["auto", "steer"] as const) {
+    assert.deepEqual(
+      CommandPolicy.resolveMessageDispatchIntent(
+        projection,
+        { type: "start_immediately" },
+        deliveryIntent,
+      ),
+      { type: "queue_after_active" },
+    );
+  }
   assert.deepEqual(
     CommandPolicy.resolveMessageDispatchIntent(
       projection,

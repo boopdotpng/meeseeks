@@ -203,6 +203,7 @@ export function runOrchestratorV2ProviderReplayScenario<
     readonly runContinuationWorker?: boolean;
     readonly recoverOnStartup?: boolean;
     readonly continueThreadsAfterServerUpdate?: boolean;
+    readonly batchQueuedMessages?: boolean;
     readonly managedPolicy?: ManagedPolicyDocument;
   } = {},
 ): Effect.Effect<
@@ -246,6 +247,7 @@ export function layerProviderReplay<Transcript extends ProviderReplayTranscript,
     readonly runContinuationWorker?: boolean;
     readonly recoverOnStartup?: boolean;
     readonly continueThreadsAfterServerUpdate?: boolean;
+    readonly batchQueuedMessages?: boolean;
     readonly managedPolicy?: ManagedPolicyDocument;
     readonly replayGate?: ProviderReplayGate;
   } = {},
@@ -261,7 +263,8 @@ export function layerProviderReplay<Transcript extends ProviderReplayTranscript,
     scenario.transcript,
     options.replayGate === undefined ? {} : { replayGate: options.replayGate },
   );
-  return layerWithRegistry(scenario, layerRegistry, options);
+  // Recorded transcripts expect one provider turn per queued message.
+  return layerWithRegistry(scenario, layerRegistry, { batchQueuedMessages: false, ...options });
 }
 
 export function layerWithRegistry<Error>(
@@ -280,6 +283,7 @@ export function layerWithRegistry<Error>(
     readonly runContinuationWorker?: boolean;
     readonly recoverOnStartup?: boolean;
     readonly continueThreadsAfterServerUpdate?: boolean;
+    readonly batchQueuedMessages?: boolean;
     readonly managedPolicy?: ManagedPolicyDocument;
   } = {},
 ): Layer.Layer<
@@ -315,6 +319,9 @@ export function layerWithRegistry<Error>(
           ...(options.continueThreadsAfterServerUpdate === undefined
             ? {}
             : { continueThreadsAfterServerUpdate: options.continueThreadsAfterServerUpdate }),
+          ...(options.batchQueuedMessages === undefined
+            ? {}
+            : { batchQueuedMessages: options.batchQueuedMessages }),
         },
         policy.summary,
       ),

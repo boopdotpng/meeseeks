@@ -6,6 +6,7 @@ import type { EnvironmentConnectionPhase } from "../connection/presentation.ts";
 
 const SHARED_SERVER_SETTING_KEYS = [
   "continueThreadsAfterServerUpdate",
+  "batchQueuedMessages",
   "sidebarAutoSettleAfterDays",
   "sidebarAutoSettleOnMerge",
   "autoResumeLimitedThreads",

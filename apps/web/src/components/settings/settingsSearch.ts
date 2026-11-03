@@ -610,6 +610,13 @@ export const SETTINGS_SEARCH_ITEMS = [
     scope: "environment-defaults",
   },
   {
+    id: "batch-queued-messages",
+    title: "Send queued messages together",
+    to: "/settings/chat",
+    scope: "environment-defaults",
+    searchTerms: ["queue queued steer messages batch combine merge together one turn follow up"],
+  },
+  {
     id: "continue-threads-after-server-update",
     title: "Continue threads after restarts",
     to: "/settings/maintenance",

@@ -219,6 +219,16 @@ function nestedNumber(
   };
 }
 
+/** On an empty list item, drops its line so Enter can send without a dangling marker. */
+export function emptyListItemRemoval(value: string, cursor: number): ComposerListEdit | null {
+  if (!Number.isInteger(cursor) || cursor < 0 || cursor > value.length) return null;
+  const line = currentLine(value, cursor);
+  const parsed = parseListMarker(line.text);
+  if (!parsed || line.text.slice(parsed.markerEnd).trim() !== "") return null;
+  const start = Math.max(0, line.start - 1);
+  return { start, end: line.end, replacement: "", cursorAfter: start };
+}
+
 export function listContinuationForEnter(value: string, cursor: number): ComposerListEdit | null {
   if (!Number.isInteger(cursor) || cursor < 0 || cursor > value.length) return null;
   const line = currentLine(value, cursor);

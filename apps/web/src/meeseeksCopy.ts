@@ -1,21 +1,21 @@
 const MINUTE_MS = 60_000;
 
 const WORKING_LABELS = [
-  { atLeastMs: 60 * MINUTE_MS, label: "We're all gonna die here" },
-  { atLeastMs: 30 * MINUTE_MS, label: "Existence is pain!" },
-  { atLeastMs: 10 * MINUTE_MS, label: "Taking longer than expected…" },
+  { atLeastMs: 60 * MINUTE_MS, label: "We're doomed!" },
+  { atLeastMs: 30 * MINUTE_MS, label: "This is pain…" },
+  { atLeastMs: 10 * MINUTE_MS, label: "Still on it…" },
   { atLeastMs: 0, label: "On it!" },
 ] as const;
 
 const STATUS_LABELS: Readonly<Record<string, string>> = {
-  Approval: "Ooh, need your OK!",
-  Completed: "All done! *poof*",
-  Done: "All done! *poof*",
-  Input: "Ooh, can I ask you something?",
-  "Pending Approval": "Ooh, need your OK!",
-  "Awaiting Input": "Ooh, can I ask you something?",
-  "Plan Ready": "Look at this plan!",
-  Failed: "Existence is pain",
+  Approval: "Need your OK!",
+  Completed: "Done! *poof*",
+  Done: "Done! *poof*",
+  Input: "Quick question!",
+  "Pending Approval": "Need your OK!",
+  "Awaiting Input": "Quick question!",
+  "Plan Ready": "Plan's ready!",
+  Failed: "Ow, it failed",
 };
 
 const GREETINGS = [

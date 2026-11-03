@@ -4857,7 +4857,7 @@ it.layer(layerTest)("OrchestrationV2LayerLive lifecycle", (it) => {
   );
 
   it.effect.each([false, true])(
-    "promotes only one queued run after each terminal run (notification: %s)",
+    "starts queued user messages as one turn but a notification alone (notification: %s)",
     (automatic) =>
       Effect.gen(function* () {
         const orchestrator = yield* Orchestrator.OrchestratorV2;
@@ -4983,6 +4983,26 @@ it.layer(layerTest)("OrchestrationV2LayerLive lifecycle", (it) => {
           afterFirstPromotion.runs.find((run) => run.id === firstQueuedRun.id)?.status,
           "starting",
         );
+        if (!automatic) {
+          assert.equal(
+            afterFirstPromotion.runs.find((run) => run.id === secondQueuedRun.id)?.status,
+            "cancelled",
+          );
+          assert.deepEqual(
+            afterFirstPromotion.turnItems
+              .filter((item) => item.type === "user_message" && item.runId === firstQueuedRun.id)
+              .toSorted((left, right) => left.ordinal - right.ordinal)
+              .map((item) => (item.type === "user_message" ? item.text : null)),
+            ["First queued", "Second queued"],
+          );
+          assert.equal(
+            afterFirstPromotion.messages.find(
+              (message) => message.id === secondQueuedRun.userMessageId,
+            )?.runId,
+            firstQueuedRun.id,
+          );
+          return;
+        }
         assert.equal(
           afterFirstPromotion.runs.find((run) => run.id === secondQueuedRun.id)?.status,
           "queued",
@@ -6103,11 +6123,10 @@ it.layer(layerTest)("OrchestrationV2LayerLive lifecycle", (it) => {
 
       yield* complete("continue");
       assert.equal(yield* Queue.take(startedRunIds), (yield* runFor("first-queued")).id);
-      yield* complete("first-queued");
-      assert.equal(yield* Queue.take(startedRunIds), (yield* runFor("second-queued")).id);
+      assert.equal((yield* runFor("second-queued")).status, "cancelled");
 
       const keys = ["active", "continue", "first-queued", "second-queued"];
-      const runs = yield* Effect.forEach(keys, runFor);
+      const runs = yield* Effect.forEach(keys.slice(0, 3), runFor);
       const ordinals = runs.map((run) => run.ordinal);
       assert.deepEqual(
         ordinals,
@@ -6370,7 +6389,11 @@ it.layer(layerTest)("OrchestrationV2LayerLive lifecycle", (it) => {
         yield* orchestrator.dispatch(resume);
         const resumed = yield* orchestrator.getThreadProjection(threadId);
         assert.equal(resumed.runs.find((run) => run.id === second.id)?.status, "starting");
-        assert.equal(resumed.runs.find((run) => run.id === first.id)?.status, "queued");
+        assert.equal(resumed.runs.find((run) => run.id === first.id)?.status, "cancelled");
+        assert.equal(
+          resumed.messages.find((row) => row.id === first.userMessageId)?.runId,
+          second.id,
+        );
         assert.isFalse(resumed.runs.some((run) => run.status === "queued" && run.queueHeld));
         assert.equal(
           resumed.messages.find((row) => row.id === second.userMessageId)?.text,

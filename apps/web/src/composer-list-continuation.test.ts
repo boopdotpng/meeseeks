@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  emptyListItemRemoval,
   listContinuationForEnter,
   listIndentForTab,
   listOutdentForTab,
@@ -34,6 +35,14 @@ describe("composer list continuation", () => {
     expect(applyEdit("- ", listContinuationForEnter("- ", 2)!)).toBe("");
     expect(applyEdit("1)\t", listContinuationForEnter("1)\t", 3)!)).toBe("");
     expect(applyEdit("- [ ] ", listContinuationForEnter("- [ ] ", 6)!)).toBe("");
+  });
+
+  it("drops only an empty item's line so the prompt can send", () => {
+    expect(applyEdit("- a\n- b\n- ", emptyListItemRemoval("- a\n- b\n- ", 10)!)).toBe("- a\n- b");
+    expect(applyEdit("- ", emptyListItemRemoval("- ", 2)!)).toBe("");
+    expect(applyEdit("1. a\n   2. ", emptyListItemRemoval("1. a\n   2. ", 11)!)).toBe("1. a");
+    expect(emptyListItemRemoval("- a", 3)).toBeNull();
+    expect(emptyListItemRemoval("plain", 5)).toBeNull();
   });
 
   it("lifts an empty nested item one level per press before leaving the list", () => {
