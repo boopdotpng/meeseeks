@@ -75,6 +75,15 @@ The most common defect in this repo is a change that works on the path you teste
 - **Connection modes.** Local, remote/relay, and tunnel behave differently. Multi-device and multi-environment cases are real.
 - **Docs.** Check whether the change makes existing guidance inaccurate. Apply the [documentation rules](#documentation) before adding anything.
 
+## Rebuilding the installed desktop app (macOS)
+
+When asked to rebuild or relaunch the installed meeseeks app, always do exactly this:
+
+1. `vp run dist:desktop:dmg:arm64 > /tmp/meeseeks-build.log 2>&1` (run in the background; takes a few minutes).
+2. `zsh scripts/install-desktop-mac.sh`. It signs the new build with the developer's Apple Development identity, quits meeseeks, swaps it into `/Applications` (previous copy kept at `/tmp/meeseeks.old.app`), and relaunches.
+
+Never install an unsigned or ad-hoc build, or copy the app by hand: each ad-hoc signature differs, so macOS asks for the keychain password on every launch. If your own process descends from meeseeks.app, step 2 would kill you; ask the developer to run it instead.
+
 ## Dev servers
 
 - `vp i` installs. Worktrees get this from the t3.json setup script; if module resolution looks broken, it probably did not run.
