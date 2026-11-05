@@ -77,10 +77,12 @@ export function resolveVersionMismatch(
   };
 }
 
+// meeseeks reuses upstream version numbers, so npm can't update a server to this build.
+// Servers are updated by rebuilding from source (scripts/deploy-server.sh), never from here.
 export function resolveServerConfigVersionMismatch(
-  serverConfig: Pick<ServerConfig, "environment"> | null | undefined,
+  _serverConfig: Pick<ServerConfig, "environment"> | null | undefined,
 ): VersionMismatch | null {
-  return resolveVersionMismatch(serverConfig?.environment.serverVersion);
+  return null;
 }
 
 export function resolveServerSelfUpdateCapability(

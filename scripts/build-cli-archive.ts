@@ -477,6 +477,7 @@ const buildCliArchive = Effect.fn("buildCliArchive")(function* (input: {
   readonly version: string;
   readonly outputDir: string;
   readonly resourceMonitorDir: Option.Option<string>;
+  readonly systemLibatomic: boolean;
 }) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -531,7 +532,7 @@ const buildCliArchive = Effect.fn("buildCliArchive")(function* (input: {
   });
 
   const executablePath = path.join(contentDir, executableName);
-  if (input.platform === "linux") {
+  if (input.platform === "linux" && !input.systemLibatomic) {
     yield* bundleLinuxLibatomic({ repoRoot, contentDir, executablePath });
   }
   // TEMPORARY one-time Node fix. Remove when fixed: https://github.com/nodejs/node/issues/67048
@@ -602,6 +603,12 @@ const command = Command.make(
         "Directory laid out like dist/resource-monitor (defaults to apps/server/dist/resource-monitor).",
       ),
       Flag.optional,
+    ),
+    systemLibatomic: Flag.Boolean("system-libatomic").pipe(
+      Flag.withDescription(
+        "Linux: rely on the host's libatomic instead of bundling it (for local non-Ubuntu builds).",
+      ),
+      Flag.withDefault(false),
     ),
   },
   (input) => buildCliArchive(input).pipe(Effect.scoped),
