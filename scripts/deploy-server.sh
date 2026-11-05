@@ -69,11 +69,14 @@ if [[ "$step" != build ]]; then
   target="$runtime/versions/$active"
   staging="$(mktemp -d "$runtime/meeseeks-staging.XXXXXX")"
   tar -xzf "$archive" -C "$staging"
-  cp "$out/COMMIT" "$staging"/*/MEESEEKS_COMMIT
+  built="$(find "$staging" -mindepth 1 -maxdepth 1 -type d)"
+  cp "$out/COMMIT" "$built/MEESEEKS_COMMIT"
+  # The service launcher only runs runtimes its installer marked complete.
+  printf '%s\n' "$active" > "$built/.install-complete"
 
   rm -rf "$runtime/meeseeks-prev"
   mv "$target" "$runtime/meeseeks-prev"
-  mv "$staging"/*/ "$target"
+  mv "$built" "$target"
   rmdir "$staging"
   echo "[deploy] installed $(cat "$target/MEESEEKS_COMMIT") as t3@$active; restarting t3code.service"
   systemctl --user restart t3code.service
