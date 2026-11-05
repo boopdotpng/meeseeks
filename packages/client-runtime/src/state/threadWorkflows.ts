@@ -112,6 +112,10 @@ export function threadSupportsProviderHandoff(projection: Projection | null | un
   );
 }
 
+export function threadSupportsSteerWithdrawal(projection: Projection): boolean {
+  return resolveThreadProviderSession(projection)?.capabilities.turns.steeringWithdrawal === true;
+}
+
 export function getUserQueuedThreadRuns(
   projection: Pick<Projection, "runs" | "messages">,
 ): ReadonlyArray<Run> {

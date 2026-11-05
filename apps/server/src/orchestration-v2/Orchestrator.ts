@@ -175,6 +175,7 @@ import { ProviderSessionManagerV2 } from "./ProviderSessionManager.ts";
 import { ProviderSwitchServiceV2 } from "./ProviderSwitchService.ts";
 import { isAutomaticCompletionRun, queuedRunsInDeliveryOrder } from "./QueuedRunOrder.ts";
 import { MAX_QUEUED_BATCH_SIZE, queuedRunBatch, queuedRunBatchEvents } from "./QueuedRunBatch.ts";
+import { findUnreadSteer } from "./SteerReceipts.ts";
 import { isRuntimePolicyAboveCeilingError, RuntimePolicyV2 } from "./RuntimePolicy.ts";
 import {
   endOrphanedNativeSubagent,
@@ -587,6 +588,8 @@ function commandThreadId(command: OrchestrationV2ServerCommand): ThreadId {
     case "message.dispatch":
     case "notification.delivery.accept":
     case "run.absorb-queued":
+    case "steer.withdraw-settled":
+    case "steer.withdraw":
     case "prepared-run.release":
     case "prepared-run.progress":
     case "prepared-run.fail":
@@ -4961,6 +4964,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         readonly providerThreadId: OrchestrationV2ProviderThread["id"];
         readonly providerInstanceId: ProviderInstanceId;
         readonly modelSwitch?: OrchestrationV2ModelSwitch | undefined;
+        readonly unread?: boolean;
       }) {
         const message: OrchestrationV2ConversationMessage = {
           createdBy: input.createdBy,
@@ -5003,10 +5007,10 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
           nativeItemRef: null,
           parentItemId: null,
           ordinal: yield* nextTurnItemOrdinal(input.projection),
-          status: "completed",
+          status: messageInput.unread === true ? "pending" : "completed",
           title: null,
           startedAt: now,
-          completedAt: now,
+          completedAt: messageInput.unread === true ? null : now,
           updatedAt: now,
           type: "user_message",
           messageId: input.messageId,
@@ -5093,6 +5097,11 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         providerTurnId: providerTurn.id,
         providerThreadId: providerThread.id,
         providerInstanceId: targetRun.providerInstanceId,
+        // Notifications have no user row to mark read.
+        unread:
+          session.providerSession.capabilities.turns.steeringReadReceipts === true &&
+          input.notification === undefined &&
+          input.delegatedCompletion === undefined,
       });
       yield* Ref.update(input.effects, (existing) => [
         ...existing,
@@ -13077,6 +13086,107 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
     }
   });
 
+  const unreadSteerItem = Effect.fn("orchestrationV2.unreadSteerItem")(function* (
+    threadId: ThreadId,
+    messageId: MessageId,
+  ) {
+    const records = yield* projectionStore
+      .getThreadRecords(threadId, ["turnItems"], {
+        turnItemTypes: ["user_message"],
+        turnItemStatuses: ["pending"],
+      })
+      .pipe(Effect.mapError((cause) => new OrchestratorProjectionError({ threadId, cause })));
+    return findUnreadSteer(records.turnItems, messageId);
+  });
+
+  const dispatchSteerWithdrawSettled = Effect.fn("orchestrationV2.steerWithdrawSettled")(function* (
+    command: Extract<OrchestrationV2ServerCommand, { readonly type: "steer.withdraw-settled" }>,
+    events: Ref.Ref<Array<OrchestrationV2DomainEvent>>,
+  ) {
+    const item = yield* unreadSteerItem(command.threadId, command.messageId);
+    if (item === undefined) return;
+    const now = yield* DateTime.now;
+    // Not withdrawn means the model already took it, and its read may still be in flight.
+    const withdrawn = command.withdrawn;
+    yield* emit(
+      events,
+      command,
+    )({
+      type: "turn-item.updated",
+      threadId: command.threadId,
+      ...(item.runId === null ? {} : { runId: item.runId }),
+      ...(item.nodeId === null ? {} : { nodeId: item.nodeId }),
+      occurredAt: now,
+      payload: {
+        ...item,
+        status: withdrawn ? "cancelled" : "completed",
+        completedAt: now,
+        updatedAt: now,
+      },
+    });
+  });
+
+  const dispatchSteerWithdraw = Effect.fn("orchestrationV2.steerWithdraw")(function* (
+    command: Extract<OrchestrationV2Command, { readonly type: "steer.withdraw" }>,
+    effects: Ref.Ref<Array<PendingOrchestrationEffectV2>>,
+  ) {
+    const fail = (cause: string) =>
+      new OrchestratorDispatchError({
+        commandId: command.commandId,
+        commandType: command.type,
+        cause,
+      });
+    const item = yield* unreadSteerItem(command.threadId, command.messageId);
+    const providerTurnId = item?.providerTurnId ?? null;
+    const providerThreadId = item?.providerThreadId ?? null;
+    if (providerTurnId === null || providerThreadId === null) {
+      return yield* fail("The model already read this message.");
+    }
+    const projection = yield* loadProjectionForCommand(command, ["messages", "providerThreads"], {
+      messageIds: [command.messageId],
+      providerThreadIds: [providerThreadId],
+    });
+    const message = projection.messages.find((candidate) => candidate.id === command.messageId);
+    const providerSessionId = projection.providerThreads.find(
+      (candidate) => candidate.id === providerThreadId,
+    )?.providerSessionId;
+    if (
+      message?.createdBy !== "user" ||
+      message.delegatedCompletion !== undefined ||
+      message.notification !== undefined
+    ) {
+      return yield* fail("Only your own messages can be withdrawn.");
+    }
+    const session =
+      providerSessionId == null
+        ? Option.none()
+        : yield* providerSessions
+            .get(providerSessionId)
+            .pipe(Effect.orElseSucceed(() => Option.none()));
+    if (
+      providerSessionId == null ||
+      Option.isNone(session) ||
+      session.value.providerSession.capabilities.turns.steeringWithdrawal !== true
+    ) {
+      return yield* fail("This provider cannot withdraw a message once it is sent.");
+    }
+    yield* Ref.update(effects, (existing) => [
+      ...existing,
+      {
+        id: `effect:${command.commandId}:provider-turn.withdraw-steer:${command.messageId}`,
+        commandId: command.commandId,
+        threadId: command.threadId,
+        request: {
+          type: "provider-turn.withdraw-steer",
+          providerSessionId,
+          providerThreadId,
+          providerTurnId,
+          messageId: command.messageId,
+        },
+      } satisfies PendingOrchestrationEffectV2,
+    ]);
+  });
+
   const dispatchNotificationAccepted = Effect.fn("orchestrationV2.notificationAccepted")(function* (
     command: Extract<OrchestrationV2Command, { type: "notification.delivery.accept" }>,
     events: Ref.Ref<Array<OrchestrationV2DomainEvent>>,
@@ -13388,6 +13498,12 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       case "run.absorb-queued":
         yield* dispatchRunAbsorbQueued(command, events);
         break;
+      case "steer.withdraw-settled":
+        yield* dispatchSteerWithdrawSettled(command, events);
+        break;
+      case "steer.withdraw":
+        yield* dispatchSteerWithdraw(command, effects);
+        break;
       case "prepared-run.release":
         yield* dispatchPreparedRunRelease(command, events, effects);
         break;
@@ -13690,6 +13806,8 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
           command.type === "thread.interrupt.unresponsive" ||
           command.type === "thread.stop" ||
           command.type === "subagent.stop" ||
+          // Its outcome arrives with steer.withdraw-settled once the provider answers.
+          command.type === "steer.withdraw" ||
           // Closing a share again, or after it ended, is not an error.
           command.type === "thread.guest-share.close" ||
           (command.type === "thread.delete" && command.onlyIfUnused === true),

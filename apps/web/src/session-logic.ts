@@ -610,6 +610,11 @@ export function deriveTimelineEntriesFromVisibleTurnItems(
     )
       continue;
     if (item.type === "user_message" && foldedAnswerMessageIds.has(item.messageId)) continue;
+    const isSteer =
+      item.type === "user_message" &&
+      (item.inputIntent === "steer" || item.inputIntent === "promoted_queued_to_steer");
+    // A withdrawn steer never reached the model.
+    if (isSteer && item.status === "cancelled") continue;
     const createdAt = projectedItemCreatedAt(row);
     const attempt = resolveAttempt(item);
     const attemptMetadata = attempt === undefined ? {} : { attempt };
@@ -662,6 +667,10 @@ export function deriveTimelineEntriesFromVisibleTurnItems(
         createdAt,
         updatedAt: DateTime.formatIso(item.updatedAt),
         ...(item.type === "user_message" ? { inputIntent: item.inputIntent } : {}),
+        // Once the run ends nothing will read it, so it shows as an ordinary message.
+        ...(isSteer && item.status === "pending" && attempt?.completedAt === null
+          ? { unreadSteer: true as const }
+          : {}),
       };
       committedMessageIds.add(message.id);
       entries.push({

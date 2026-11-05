@@ -130,6 +130,15 @@ export function historicalMessage(
   let text: string;
   switch (item.type) {
     case "user_message":
+      // A withdrawn steer never reached the model.
+      if (
+        item.status === "cancelled" &&
+        (item.inputIntent === "steer" || item.inputIntent === "promoted_queued_to_steer")
+      ) {
+        return null;
+      }
+      text = item.text;
+      break;
     case "assistant_message":
       text = item.text;
       break;

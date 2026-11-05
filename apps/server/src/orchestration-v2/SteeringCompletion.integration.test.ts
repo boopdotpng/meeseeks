@@ -485,6 +485,7 @@ const nextTurnSelectionHarness = Effect.fn("nextTurnSelectionHarness")(function*
   canSteer = true,
   interruptTurn: Effect.Effect<void> = Effect.void,
   steeringAcceptsAttachments = true,
+  readReceipts = false,
 ) {
   const cwd = yield* checkpointWorkspace(name);
   const events = yield* Queue.unbounded<ProviderAdapter.ProviderAdapterV2Event>();
@@ -498,8 +499,11 @@ const nextTurnSelectionHarness = Effect.fn("nextTurnSelectionHarness")(function*
       supportsActiveSteering: canSteer,
       supportsSteeringByInterruptRestart: canRestart,
       activeSteeringAcceptsAttachments: steeringAcceptsAttachments,
+      steeringReadReceipts: readReceipts,
+      steeringWithdrawal: readReceipts,
     },
   };
+  const withdrawn: MessageId[] = [];
   const adapter: ProviderAdapter.ProviderAdapterV2["Service"] = {
     instanceId,
     driver,
@@ -578,6 +582,11 @@ const nextTurnSelectionHarness = Effect.fn("nextTurnSelectionHarness")(function*
             Effect.sync(() => {
               steered.push(turn.message.text);
             }),
+          withdrawSteer: ({ messageId }) =>
+            Effect.sync(() => {
+              withdrawn.push(messageId);
+              return true;
+            }),
           interruptTurn: ({ providerTurnId }) =>
             Effect.sync(() => {
               interrupted.push(providerTurnId);
@@ -648,7 +657,7 @@ const nextTurnSelectionHarness = Effect.fn("nextTurnSelectionHarness")(function*
     yield* Fiber.join(running);
     return threadId;
   });
-  return { cwd, events, started, steered, interrupted, layer, startFirstTurn };
+  return { cwd, events, started, steered, withdrawn, interrupted, layer, startFirstTurn };
 });
 
 it.effect("steers a delegated task question notice into the running parent turn", () =>
@@ -1033,6 +1042,100 @@ it.effect("restarts the turn for an image when native steering takes text only",
             ["first", 0],
             ["look at this", 1],
           ],
+        );
+      }).pipe(Effect.provide(layer));
+    }),
+  ),
+);
+
+it.effect("keeps a steer unread until the model reads it and withdraws it before then", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const { events, steered, withdrawn, layer, startFirstTurn } = yield* nextTurnSelectionHarness(
+        "steering-read-receipts",
+        false,
+        true,
+        Effect.void,
+        true,
+        true,
+      );
+      yield* Effect.gen(function* () {
+        const orchestrator = yield* Orchestrator.OrchestratorV2;
+        const worker = yield* EffectWorker.OrchestrationEffectWorkerV2;
+        const threadId = yield* startFirstTurn;
+        const runId = (yield* orchestrator.getThreadProjection(threadId)).runs[0]!.id;
+        const steer = (id: string) =>
+          orchestrator.dispatch({
+            type: "message.dispatch",
+            commandId: CommandId.make(`steer-${id}`),
+            threadId,
+            messageId: MessageId.make(`message:${id}`),
+            text: id,
+            attachments: [],
+            modelSelection: runSelection,
+            dispatchMode: { type: "steer_active", targetRunId: runId },
+            createdBy: "user",
+            creationSource: "web",
+          });
+        const steerStatuses = Effect.map(orchestrator.getThreadProjection(threadId), (projection) =>
+          projection.turnItems.flatMap((item) =>
+            item.type === "user_message" && item.inputIntent === "steer"
+              ? [[item.messageId, item.status] as const]
+              : [],
+          ),
+        );
+        yield* steer("read-me");
+        yield* steer("withdraw-me");
+        yield* worker.drain();
+        assert.deepEqual(steered, ["read-me", "withdraw-me"]);
+        assert.deepEqual(yield* steerStatuses, [
+          [MessageId.make("message:read-me"), "pending"],
+          [MessageId.make("message:withdraw-me"), "pending"],
+        ]);
+
+        const read = yield* orchestrator.streamDomainEvents.pipe(
+          Stream.filter(
+            (event) =>
+              event.type === "turn-item.updated" &&
+              event.payload.type === "user_message" &&
+              event.payload.status === "completed",
+          ),
+          Stream.take(1),
+          Stream.runDrain,
+          Effect.forkScoped,
+        );
+        yield* Queue.offer(events, {
+          type: "steer.read",
+          driver,
+          threadId,
+          messageId: MessageId.make("message:read-me"),
+        });
+        yield* Fiber.join(read);
+
+        yield* orchestrator.dispatch({
+          type: "steer.withdraw",
+          commandId: CommandId.make("withdraw"),
+          threadId,
+          messageId: MessageId.make("message:withdraw-me"),
+        });
+        yield* worker.drain();
+        assert.deepEqual(withdrawn, [MessageId.make("message:withdraw-me")]);
+        assert.deepEqual(yield* steerStatuses, [
+          [MessageId.make("message:read-me"), "completed"],
+          [MessageId.make("message:withdraw-me"), "cancelled"],
+        ]);
+
+        const late = yield* orchestrator
+          .dispatch({
+            type: "steer.withdraw",
+            commandId: CommandId.make("withdraw-read"),
+            threadId,
+            messageId: MessageId.make("message:read-me"),
+          })
+          .pipe(Effect.flip);
+        assert.strictEqual(
+          "cause" in late ? late.cause : undefined,
+          "The model already read this message.",
         );
       }).pipe(Effect.provide(layer));
     }),

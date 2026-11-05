@@ -230,6 +230,8 @@ interface MessagesTimelineProps {
   onCancelWorktreeSetup?: () => void;
   retryableWorkspacePreparationRunIds?: ReadonlySet<RunId>;
   onRetryWorkspacePreparation?: (runId: RunId) => void;
+  /** Absent where the provider cannot take back a steer the model has not read. */
+  onWithdrawSteer?: (messageId: MessageId) => void;
   onWorktreeSetupWorkLocally?: () => void;
   onOpenWorktreeSetupTerminal?: (terminalId: string) => void;
   isPreparingWorktree?: boolean;
@@ -344,6 +346,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
   onCancelWorktreeSetup,
   retryableWorkspacePreparationRunIds = EMPTY_RUN_IDS,
   onRetryWorkspacePreparation,
+  onWithdrawSteer,
   onWorktreeSetupWorkLocally,
   onOpenWorktreeSetupTerminal,
   isPreparingWorktree = false,
@@ -1046,6 +1049,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
     onCancelWorktreeSetup: onCancelWorktreeSetup ?? null,
     retryableWorkspacePreparationRunIds,
     onRetryWorkspacePreparation: onRetryWorkspacePreparation ?? null,
+    onWithdrawSteer: onWithdrawSteer ?? null,
     onWorktreeSetupWorkLocally: onWorktreeSetupWorkLocally ?? null,
     onOpenWorktreeSetupTerminal: onOpenWorktreeSetupTerminal ?? null,
     workGroupViewState,

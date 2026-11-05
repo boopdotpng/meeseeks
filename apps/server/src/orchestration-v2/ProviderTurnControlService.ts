@@ -68,6 +68,14 @@ export interface ProviderTurnControlServiceV2Shape {
     readonly providerTurnId: ProviderTurnId;
     readonly messageId: MessageId;
   }) => Effect.Effect<void, ProviderTurnControlError>;
+  /** False when the model already took the steer, or nothing live can withdraw it. */
+  readonly withdrawSteer: (input: {
+    readonly threadId: ThreadId;
+    readonly providerSessionId: ProviderSessionId;
+    readonly providerThreadId: ProviderThreadId;
+    readonly providerTurnId: ProviderTurnId;
+    readonly messageId: MessageId;
+  }) => Effect.Effect<boolean>;
   readonly interruptAndAwaitTerminal: (input: {
     readonly threadId: ThreadId;
     readonly providerSessionId: ProviderSessionId;
@@ -333,6 +341,29 @@ export const layer: Layer.Layer<
                     providerTurnId: input.providerTurnId,
                     cause,
                   }),
+            ),
+          ),
+      ),
+      withdrawSteer: Effect.fn("ProviderTurnControlService.withdrawSteer")(
+        function* (input) {
+          const loaded = yield* load({ ...input, operation: "steer" });
+          if (Option.isNone(loaded.session)) return false;
+          const withdraw = loaded.session.value.withdrawSteer;
+          if (withdraw === undefined) return false;
+          return yield* withdraw({
+            providerThread: loaded.providerThread,
+            providerTurnId: loaded.providerTurn.id,
+            messageId: input.messageId,
+          });
+        },
+        (effect, input) =>
+          effect.pipe(
+            Effect.catchCause((cause) =>
+              Effect.logWarning("orchestration-v2.steer-withdraw-failed", {
+                threadId: input.threadId,
+                messageId: input.messageId,
+                cause,
+              }).pipe(Effect.as(false)),
             ),
           ),
       ),

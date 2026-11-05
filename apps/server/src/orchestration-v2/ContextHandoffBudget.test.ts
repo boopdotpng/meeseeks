@@ -2,6 +2,7 @@ import type * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAda
 import { assert, describe, it } from "@effect/vitest";
 import {
   ContextHandoffId,
+  MessageId,
   PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
   ProviderDriverKind,
   ProviderInstanceId,
@@ -158,6 +159,18 @@ describe("handoff budget", () => {
         streaming: false,
       }),
     );
+    const steer = {
+      ...base,
+      type: "user_message" as const,
+      messageId: MessageId.make("message:steer"),
+      inputIntent: "steer" as const,
+      text: "never sent",
+      attachments: [],
+      createdBy: "user" as const,
+      creationSource: "web" as const,
+    };
+    assert.isNull(historicalMessage({ ...steer, status: "cancelled" }));
+    assert.equal(historicalMessage(steer)?.text, "never sent");
     assert.equal(historyResponseItems([command!], "Activity")[1]?.type, "message");
   });
 

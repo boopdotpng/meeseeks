@@ -288,6 +288,10 @@ export const OrchestrationV2TurnCapabilities = Schema.Struct({
   // Some take text only, so a steer with attachments restarts the turn instead.
   activeSteeringAcceptsAttachments: Schema.optional(Schema.Boolean),
   supportsSteeringByInterruptRestart: Schema.Boolean,
+  // A steer shows as unread until the adapter reports the model took it.
+  steeringReadReceipts: Schema.optional(Schema.Boolean),
+  // An unread steer can be withdrawn before the model takes it.
+  steeringWithdrawal: Schema.optional(Schema.Boolean),
   supportsQueuedMessages: Schema.Boolean,
   terminalStatusQuality: Schema.Literals(["strong", "weak", "none"]),
 });
@@ -3263,6 +3267,12 @@ export const OrchestrationV2Command = Schema.Union([
     runId: RunId,
   }),
   Schema.Struct({
+    type: Schema.Literal("steer.withdraw"),
+    commandId: CommandId,
+    threadId: ThreadId,
+    messageId: MessageId,
+  }),
+  Schema.Struct({
     type: Schema.Literal("queued-run.edit"),
     context: Schema.optional(OrchestrationMessageContext),
     commandId: CommandId,
@@ -3380,6 +3390,14 @@ const OrchestrationV2InternalCommand = Schema.Union([
     commandId: CommandId,
     threadId: ThreadId,
     runId: RunId,
+  }),
+  /** The provider answered a withdraw; false means the model had already taken it. */
+  Schema.Struct({
+    type: Schema.Literal("steer.withdraw-settled"),
+    commandId: CommandId,
+    threadId: ThreadId,
+    messageId: MessageId,
+    withdrawn: Schema.Boolean,
   }),
   // Guest share commands the server issues after checking T3 Connect and the guest token.
   Schema.Struct({

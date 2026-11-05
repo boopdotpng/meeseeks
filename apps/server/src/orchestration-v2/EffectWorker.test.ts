@@ -92,6 +92,7 @@ function layerExecutorFor(input: {
       ProviderTurnControlService.ProviderTurnControlServiceV2.of({
         interrupt: input.interrupt ?? (() => Effect.void),
         steer: () => Effect.void,
+        withdrawSteer: () => Effect.succeed(false),
         interruptAndAwaitTerminal: (request) =>
           record(
             request.replacementProviderSessionId === undefined

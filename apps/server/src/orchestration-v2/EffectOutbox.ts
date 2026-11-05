@@ -59,6 +59,13 @@ export const OrchestrationEffectRequestV2 = Schema.Union([
     messageId: MessageId,
   }),
   Schema.Struct({
+    type: Schema.Literal("provider-turn.withdraw-steer"),
+    providerSessionId: ProviderSessionId,
+    providerThreadId: ProviderThreadId,
+    providerTurnId: ProviderTurnId,
+    messageId: MessageId,
+  }),
+  Schema.Struct({
     type: Schema.Literal("provider-turn.restart"),
     providerSessionId: ProviderSessionId,
     providerThreadId: ProviderThreadId,
@@ -139,6 +146,7 @@ export const PROCESS_BOUND_EFFECT_TYPES = [
   "provider-turn.start",
   "provider-turn.interrupt",
   "provider-turn.steer",
+  "provider-turn.withdraw-steer",
   "provider-turn.restart",
   "runtime-request.respond",
 ] as const satisfies ReadonlyArray<OrchestrationEffectRequestV2["type"]>;

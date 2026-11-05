@@ -148,6 +148,13 @@ export const ProviderAdapterV2Event = Schema.Union([
     threadId: Schema.optional(ThreadId),
     runtimeRequest: OrchestrationV2RuntimeRequest,
   }),
+  /** The model took this steer; only adapters with steeringReadReceipts emit it. */
+  Schema.Struct({
+    type: Schema.Literal("steer.read"),
+    driver: ProviderDriverKind,
+    threadId: ThreadId,
+    messageId: MessageId,
+  }),
   Schema.Struct({
     type: Schema.Literal("plan.updated"),
     driver: ProviderDriverKind,
@@ -649,6 +656,12 @@ export interface ProviderAdapterV2SessionRuntime {
   readonly steerTurn: (
     input: ProviderAdapterV2SteerInput,
   ) => Effect.Effect<void, ProviderAdapterV2Error>;
+  /** Withdraws an unread steer; false when the model already took it. Required with steeringWithdrawal. */
+  readonly withdrawSteer?: (input: {
+    readonly providerThread: OrchestrationV2ProviderThread;
+    readonly providerTurnId: ProviderTurnId;
+    readonly messageId: MessageId;
+  }) => Effect.Effect<boolean, ProviderAdapterV2Error>;
   readonly stopTask?: (input: {
     readonly providerThread: OrchestrationV2ProviderThread;
     readonly taskId: string;

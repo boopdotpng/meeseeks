@@ -728,6 +728,79 @@ describe("V2 session presentation", () => {
     }
   });
 
+  it.each([
+    { status: "pending", runActive: true, expected: "unread" },
+    { status: "pending", runActive: false, expected: "read" },
+    { status: "completed", runActive: true, expected: "read" },
+    { status: "cancelled", runActive: true, expected: "hidden" },
+  ] as const)(
+    "shows a $status steer on a run active=$runActive as $expected",
+    ({ status, runActive, expected }) => {
+      const now = DateTime.makeUnsafe("2026-06-20T00:00:00.000Z");
+      const threadId = ThreadId.make("thread-unread-steer");
+      const runId = RunId.make("run-unread-steer");
+      const rootNodeId = NodeId.make("node-unread-steer");
+      const messageId = MessageId.make("message-unread-steer");
+      const item = {
+        id: TurnItemId.make("item-unread-steer"),
+        threadId,
+        runId,
+        nodeId: rootNodeId,
+        providerThreadId: null,
+        providerTurnId: null,
+        nativeItemRef: null,
+        parentItemId: null,
+        ordinal: 3,
+        status,
+        title: null,
+        startedAt: now,
+        completedAt: now,
+        updatedAt: now,
+        type: "user_message" as const,
+        messageId,
+        inputIntent: "steer" as const,
+        text: "Also check the logs",
+        attachments: [],
+        createdBy: "user" as const,
+        creationSource: "web" as const,
+      } satisfies OrchestrationV2TurnItem;
+      const entries = deriveTimelineEntriesFromVisibleTurnItems({
+        visibleTurnItems: [
+          {
+            position: 0,
+            visibility: "local",
+            sourceThreadId: threadId,
+            sourceItemId: item.id,
+            item,
+          },
+        ],
+        optimisticMessages: [],
+        attempts: [
+          {
+            id: RunAttemptId.make("attempt-unread-steer"),
+            runId,
+            attemptOrdinal: 1,
+            rootNodeId,
+            providerInstanceId: ProviderInstanceId.make("claude-default"),
+            providerThreadId: ProviderThreadId.make("provider-thread-unread-steer"),
+            providerTurnId: null,
+            reason: "initial",
+            status: runActive ? "running" : "completed",
+            startedAt: now,
+            completedAt: runActive ? null : now,
+          },
+        ],
+      });
+      if (expected === "hidden") {
+        expect(entries).toEqual([]);
+        return;
+      }
+      expect(entries[0]?.kind === "message" && entries[0].message.unreadSteer).toBe(
+        expected === "unread" ? true : undefined,
+      );
+    },
+  );
+
   it("anchors feedback before later committed turns without reordering canonical history", () => {
     const threadId = ThreadId.make("thread-feedback-order");
     const messageItem = (input: {

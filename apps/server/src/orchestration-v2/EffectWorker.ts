@@ -250,6 +250,36 @@ export const layerExecutor: Layer.Layer<
                 ),
               );
           }
+          case "provider-turn.withdraw-steer": {
+            const { messageId } = effect.request;
+            return providerTurnControl
+              .withdrawSteer({
+                threadId: effect.threadId,
+                providerSessionId: effect.request.providerSessionId,
+                providerThreadId: effect.request.providerThreadId,
+                providerTurnId: effect.request.providerTurnId,
+                messageId,
+              })
+              .pipe(
+                Effect.flatMap((withdrawn) =>
+                  threads.dispatch({
+                    type: "steer.withdraw-settled",
+                    commandId: CommandId.make(`command:steer-withdraw-settled:${effect.id}`),
+                    threadId: effect.threadId,
+                    messageId,
+                    withdrawn,
+                  }),
+                ),
+                Effect.mapError(
+                  (cause) =>
+                    new OrchestrationEffectExecutionError({
+                      effectId: effect.id,
+                      effectType: effect.request.type,
+                      cause,
+                    }),
+                ),
+              );
+          }
           case "provider-turn.steer":
             return providerTurnControl
               .steer({

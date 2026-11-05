@@ -35,6 +35,7 @@ import {
   MessagesSquareIcon,
   Redo2Icon,
   PencilIcon,
+  XIcon,
 } from "lucide-react";
 import { Link as LinkIconNode } from "lucide";
 import { Button, InlineButton } from "../ui/button";
@@ -774,6 +775,8 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
   // Touch shows actions all the time, and narrow lanes have no room beside the
   // bubble, so both keep the actions on their own line.
   const floatActions = row.groupedWithNext === true && !coarsePointer;
+  const unreadSteer = row.message.unreadSteer === true;
+  const onWithdrawSteer = row.message.createdBy === "user" ? ctx.onWithdrawSteer : null;
   const messageActions = (
     <div
       className={cn(
@@ -861,7 +864,10 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
           BUBBLE_CHIP_CLASS_NAME,
           userMessage.attribution === "guest"
             ? guestBubbleClassName(false)
-            : !mediaOnly && !fileCardsOnly && !audioOnly && "bg-message",
+            : unreadSteer
+              ? // Dashed and unfilled like a queued message: the model has not read it yet.
+                "border border-dashed border-muted-foreground/40 text-muted-foreground"
+              : !mediaOnly && !fileCardsOnly && !audioOnly && "bg-message",
           !folded && !mediaOnly && !fileCardsOnly && !audioOnly && "p-3",
           folded && expanded && "w-full",
         )}
@@ -1027,6 +1033,28 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
         ) : null}
       </div>
       <UserMessageProjectedStatus row={row} />
+      {unreadSteer ? (
+        <div className="flex items-center gap-0.5 pe-1 text-xs text-muted-foreground">
+          <p className="me-1">Waiting for the model</p>
+          {onWithdrawSteer ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="icon-xs"
+                    variant="ghost-muted"
+                    aria-label="Remove steering message"
+                    onClick={() => onWithdrawSteer(row.message.id)}
+                  />
+                }
+              >
+                <XIcon />
+              </TooltipTrigger>
+              <TooltipPopup>Remove before the model reads it</TooltipPopup>
+            </Tooltip>
+          ) : null}
+        </div>
+      ) : null}
       {!folded || expanded ? (
         <div
           className={cn(
