@@ -156,7 +156,8 @@ a shortcut.
 ## Commands with special behavior
 
 `thread.stop` interrupts the running turn in the focused thread. It has no default
-shortcut; assign one in **Settings → Keybindings**.
+shortcut; assign one in **Settings → Keybindings**. Pressing `Esc` twice quickly also
+stops the running turn, unless the first press closed a menu or dialog or cancelled dictation.
 
 `thread.undo` (`mod+z` by default) reverses the actions shown in the notice at the
 bottom of the sidebar, such as unpin, settle, snooze, archive, or discarding a
