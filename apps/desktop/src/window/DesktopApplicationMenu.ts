@@ -25,6 +25,45 @@ export class DesktopApplicationMenuActionError extends Schema.TaggedError<Deskto
   }
 }
 
+// Role items without an explicit label get Electron's title-cased defaults, so spell them out.
+const ROLE_LABELS: Partial<
+  Record<NonNullable<Electron.MenuItemConstructorOptions["role"]>, string>
+> = {
+  about: "about",
+  services: "services",
+  hide: "hide",
+  hideOthers: "hide others",
+  unhide: "show all",
+  quit: "quit",
+  undo: "undo",
+  redo: "redo",
+  cut: "cut",
+  copy: "copy",
+  paste: "paste",
+  delete: "delete",
+  selectAll: "select all",
+  startSpeaking: "start speaking",
+  stopSpeaking: "stop speaking",
+  togglefullscreen: "toggle full screen",
+  minimize: "minimize",
+  zoom: "zoom",
+  front: "bring all to front",
+  windowMenu: "window",
+  help: "help",
+};
+
+const lowercaseMenuTemplate = (
+  items: ReadonlyArray<Electron.MenuItemConstructorOptions>,
+): Electron.MenuItemConstructorOptions[] =>
+  items.map((item) => {
+    const label = item.label ?? (item.role ? ROLE_LABELS[item.role] : undefined);
+    return {
+      ...item,
+      ...(label !== undefined ? { label: label.toLowerCase() } : {}),
+      ...(Array.isArray(item.submenu) ? { submenu: lowercaseMenuTemplate(item.submenu) } : {}),
+    };
+  });
+
 export class DesktopApplicationMenu extends Context.Service<
   DesktopApplicationMenu,
   {
@@ -314,7 +353,7 @@ export const make = Effect.gen(function* () {
       },
     );
 
-    yield* electronMenu.setApplicationMenu(template);
+    yield* electronMenu.setApplicationMenu(lowercaseMenuTemplate(template));
   }).pipe(Effect.withSpan("desktop.menu.configure"));
 
   return DesktopApplicationMenu.of({
