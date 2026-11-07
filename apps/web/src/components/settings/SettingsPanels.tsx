@@ -771,7 +771,7 @@ export function LegacyFeaturesSection() {
       />
       <SettingsRow
         {...searchableSetting("legacy-context-window-indicator")}
-        description="Shows context window usage as a circular indicator in the composer."
+        description="Shows context window usage in the composer."
         control={
           <Switch
             checked={settings.contextWindowMeterEnabled}

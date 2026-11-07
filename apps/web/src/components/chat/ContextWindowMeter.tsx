@@ -34,6 +34,11 @@ export function ContextWindowMeter(props: {
   const dashOffset = circumference * (1 - normalizedPercentage / 100);
   const totalProcessedTokens = usage.totalProcessedTokens ?? null;
   const showTotalProcessed = totalProcessedTokens !== null && totalProcessedTokens > 0;
+  const maxTokens = usage.maxTokens ?? null;
+  const usageLabel =
+    maxTokens !== null
+      ? `${formatContextWindowTokens(usage.usedTokens)}/${formatContextWindowTokens(maxTokens)}`
+      : formatContextWindowTokens(usage.usedTokens);
   const isOverloaded = normalizedPercentage > 90;
   const usageColor = isOverloaded
     ? "var(--color-error)"
@@ -47,16 +52,15 @@ export function ContextWindowMeter(props: {
         closeDelay={onCompact ? 150 : 0}
         render={
           <Button
-            size="icon-sm"
+            size="compact"
             variant="ghost-muted"
-            className="size-7"
             aria-label={
               usage.maxTokens !== null && usedPercentage
                 ? `Context window ${usedPercentage} used`
                 : `Context window ${formatContextWindowTokens(usage.usedTokens)} tokens used`
             }
           >
-            <span className="relative flex size-5 items-center justify-center">
+            <span className="relative flex size-4 items-center justify-center">
               <svg
                 viewBox="0 0 24 24"
                 className="-rotate-90 absolute inset-0 size-full transform-gpu mx-0!"
@@ -84,6 +88,7 @@ export function ContextWindowMeter(props: {
                 />
               </svg>
             </span>
+            <span className="tabular-nums">{usageLabel}</span>
           </Button>
         }
       />
