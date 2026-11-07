@@ -1,11 +1,13 @@
 import type {
   OrchestrationV2PendingBackgroundTask,
+  OrchestrationV2ProviderThread,
   OrchestrationV2ProviderTurn,
   OrchestrationV2RestartCancelledBackgroundWork,
   OrchestrationV2Run,
   OrchestrationV2RunAttempt,
   OrchestrationV2TurnItem,
 } from "@t3tools/contracts";
+import { pendingBackgroundTurnItems } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
 import { latestRootProviderFailure, runRanAfter } from "@t3tools/shared/orchestrationV2ThreadError";
 
 type Work = OrchestrationV2RestartCancelledBackgroundWork;
@@ -120,16 +122,86 @@ export function cancelledRosterTaskWork(task: OrchestrationV2PendingBackgroundTa
   };
 }
 
+/**
+ * Background work a Stop is about to end, so the next turn can say so. Delegated tasks are
+ * left out: the agent tracks them through task_status. Pass only the provider threads Stop reaches.
+ */
+export function stopCancelledBackgroundWork(input: {
+  readonly turnItems: ReadonlyArray<OrchestrationV2TurnItem>;
+  readonly runs: ReadonlyArray<
+    Pick<OrchestrationV2Run, "id" | "ordinal" | "status" | "providerThreadId">
+  >;
+  readonly providerThreads: ReadonlyArray<
+    Pick<
+      OrchestrationV2ProviderThread,
+      "id" | "ownerNodeId" | "nativeThreadRef" | "pendingBackgroundTasks"
+    >
+  >;
+}): ReadonlyArray<Work> {
+  const stoppedThreadIds = new Set(input.providerThreads.map((thread) => thread.id));
+  const work: Array<Work> = [];
+  const nativeIds = new Set<string>();
+  for (const item of pendingBackgroundTurnItems({ turnItems: input.turnItems, runs: input.runs })) {
+    if (item.type === "subagent" && item.origin === "app_owned") continue;
+    const awaitingId = awaitingProviderThreadId(item, input.runs);
+    if (awaitingId == null || !stoppedThreadIds.has(awaitingId)) continue;
+    const ownProviderThread =
+      item.providerThreadId === awaitingId
+        ? undefined
+        : input.providerThreads.find((candidate) => candidate.id === item.providerThreadId);
+    const entry = cancelledTurnItemWork(
+      item,
+      ownProviderThread?.nativeThreadRef?.nativeId ?? undefined,
+    );
+    if (entry === undefined) continue;
+    work.push({ ...entry, stoppedByUser: true });
+    if (item.nativeItemRef?.nativeId != null) nativeIds.add(item.nativeItemRef.nativeId);
+  }
+  for (const providerThread of input.providerThreads) {
+    if (providerThread.ownerNodeId !== null) continue;
+    for (const task of providerThread.pendingBackgroundTasks ?? []) {
+      // A subagent already listed covers the shells it started.
+      if (
+        nativeIds.has(task.taskId) ||
+        (task.parentTaskId !== undefined && nativeIds.has(task.parentTaskId))
+      )
+        continue;
+      nativeIds.add(task.taskId);
+      work.push({ ...cancelledRosterTaskWork(task), stoppedByUser: true });
+    }
+  }
+  return mergeRestartCancelledBackgroundWork([], work);
+}
+
 const MAX_NOTE_ENTRIES = 10;
+
+function cancelledWorkSection(header: string, work: ReadonlyArray<Work>): ReadonlyArray<string> {
+  if (work.length === 0) return [];
+  const omitted = work.length - MAX_NOTE_ENTRIES;
+  return [
+    header,
+    ...work.slice(0, MAX_NOTE_ENTRIES).map((entry) => `- ${entry.kind}: ${entry.label}`),
+    ...(omitted > 0 ? [`- and ${omitted} more`] : []),
+  ];
+}
 
 /** Bounds entries and labels to protect the context budget. */
 export function restartCancelledBackgroundWorkNote(work: ReadonlyArray<Work>): string {
-  const omitted = work.length - MAX_NOTE_ENTRIES;
   return [
-    "Note: the T3 server restarted, and this background work was cancelled before it finished. It will not report back on its own, so resume or restart what you still need and wait for its result:",
-    ...work.slice(0, MAX_NOTE_ENTRIES).map((entry) => `- ${entry.kind}: ${entry.label}`),
-    ...(omitted > 0 ? [`- and ${omitted} more`] : []),
+    ...cancelledWorkSection(
+      "Note: the T3 server restarted, and this background work was cancelled before it finished. It will not report back on its own, so resume or restart what you still need and wait for its result:",
+      restartCancelledWork(work),
+    ),
+    ...cancelledWorkSection(
+      "Note: the user pressed Stop, which also stopped this background work before it finished. It will not report back on its own. Restart or steer what is still needed only if the user's message calls for it:",
+      work.filter((entry) => entry.stoppedByUser === true),
+    ),
   ].join("\n");
+}
+
+/** Work a Stop ended only informs the next turn; it never makes a run a restart source. */
+function restartCancelledWork(work: ReadonlyArray<Work> | undefined): ReadonlyArray<Work> {
+  return (work ?? []).filter((entry) => entry.stoppedByUser !== true);
 }
 
 type ProviderTurnState = Pick<
@@ -146,7 +218,7 @@ export function isRestartNoteSource(
     (source.status === "completed" ||
       source.status === "waiting" ||
       source.status === "cancelled") &&
-    (source.restartCancelledBackgroundWork?.length ?? 0) > 0 &&
+    restartCancelledWork(source.restartCancelledBackgroundWork).length > 0 &&
     !providerTurns.some(
       (turn) => turn.runAttemptId === source.activeAttemptId && turn.status === "cancelled",
     )
@@ -166,7 +238,7 @@ export function runOutcome(
   run: Pick<OrchestrationV2Run, "status" | "restartCancelledBackgroundWork">,
 ): OrchestrationV2Run["status"] {
   return (run.status === "completed" || run.status === "cancelled") &&
-    (run.restartCancelledBackgroundWork ?? []).some(isAwaitedWork)
+    restartCancelledWork(run.restartCancelledBackgroundWork).some(isAwaitedWork)
     ? "interrupted"
     : run.status;
 }
@@ -234,7 +306,7 @@ export function isRestartContinuationSource(
   providerTurns: ReadonlyArray<Pick<ProviderTurnState, "runAttemptId" | "status">>,
 ): boolean {
   return isRestartNoteSource(source, providerTurns)
-    ? (source.restartCancelledBackgroundWork ?? []).some(isAwaitedWork)
+    ? restartCancelledWork(source.restartCancelledBackgroundWork).some(isAwaitedWork)
     : source.status === "cancelled";
 }
 

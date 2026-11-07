@@ -966,6 +966,19 @@ const stopEarlierBackgroundWork = ({
           ],
         );
         const after = yield* orchestrator.getThreadProjection(threadId);
+        if (!olderStart) {
+          assert.deepEqual(
+            after.runs
+              .find((run) => run.id === (failedStart ? failedRun.runId : latestRun.runId))
+              ?.restartCancelledBackgroundWork?.map((work) => `${work.id} ${work.stoppedByUser}`),
+            [
+              devServerId,
+              watcherId,
+              reviewerId,
+              ...(failedStart ? ["sleep", "other-sleep"] : []),
+            ].map((id) => `${id} true`),
+          );
+        }
         if (olderStart) {
           assert.equal(
             after.runs.find((run) => run.id === watcherRun.runId)?.status,

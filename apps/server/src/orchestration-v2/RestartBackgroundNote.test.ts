@@ -12,10 +12,13 @@ import {
   cancelledRosterTaskWork,
   cancelledTurnItemWork,
   isAwaitedWork,
+  isRestartContinuationSource,
   isRestartNoteContinuation,
   pendingRestartCancelledBackgroundWork,
   restartContinuationNote,
   mergeRestartCancelledBackgroundWork,
+  restartCancelledBackgroundWorkNote,
+  runOutcome,
 } from "./RestartBackgroundNote.ts";
 
 const claudeThread = ProviderThreadId.make("provider-thread:claude");
@@ -247,5 +250,27 @@ it("counts a prompted mid-turn or chained continuation as delivering the note", 
       attempts,
     }),
     [],
+  );
+});
+
+it("tells the next turn about work Stop ended without making the run a restart source", () => {
+  const stopped = { ...lost[0]!, id: "agent-1", stoppedByUser: true as const };
+  const source = run(1, claudeThread, { restartCancelledBackgroundWork: [stopped] });
+  assert.isFalse(isRestartContinuationSource(source, []));
+  assert.equal(runOutcome(source), "completed");
+  assert.deepEqual(
+    pendingRestartCancelledBackgroundWork({
+      runs: [source, run(2, claudeThread)],
+      providerTurns: [turnFor(source)],
+      compactionMessageIds: new Set(),
+      run: run(2, claudeThread),
+      attempts: [],
+    }),
+    [stopped],
+  );
+  const note = restartCancelledBackgroundWorkNote([...lost, stopped]);
+  assert.match(
+    note,
+    /server restarted[^\n]*\n- subagent: Background subagent test\nNote: the user pressed Stop/,
   );
 });

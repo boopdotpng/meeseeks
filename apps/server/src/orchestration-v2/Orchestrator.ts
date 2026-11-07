@@ -124,7 +124,9 @@ import {
   continuationFailedBeforePrompt,
   continuationStartRetryDelayMs,
   isRestartContinuationSource,
+  mergeRestartCancelledBackgroundWork,
   runOutcome,
+  stopCancelledBackgroundWork,
 } from "./RestartBackgroundNote.ts";
 import {
   isBufferedProviderNotification,
@@ -11705,6 +11707,30 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       message: command.reason ?? RunExecutionService.USER_STOP_REASON,
     };
 
+    // Stop ends this work for good, so the next turn tells the agent what to restart.
+    const recordStoppedBackgroundWork = Effect.fnUntraced(function* () {
+      const stopped = stopCancelledBackgroundWork({
+        turnItems: projection.turnItems,
+        runs: projection.runs,
+        providerThreads: hasBackgroundWork ? projection.providerThreads : [providerThread],
+      });
+      if (stopped.length === 0) return;
+      yield* emitEvent({
+        type: "run.background-work-cancelled",
+        threadId: command.threadId,
+        runId: run.id,
+        providerInstanceId: run.providerInstanceId,
+        occurredAt: now,
+        payload: {
+          runId: run.id,
+          restartCancelledBackgroundWork: mergeRestartCancelledBackgroundWork(
+            run.restartCancelledBackgroundWork ?? [],
+            stopped,
+          ),
+        },
+      });
+    });
+
     const otherProviderInterrupts: Array<PendingOrchestrationEffectV2> = [];
     if (hasBackgroundWork || command.holdQueue === true) {
       const runOrdinals = new Map(
@@ -11941,6 +11967,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         occurredAt: now,
         payload: interruptRequestItem,
       });
+      yield* recordStoppedBackgroundWork();
       yield* stopRemainingWork();
       yield* settleInterruptedRun({ command, projection, providerTurn, events, effects, now });
       yield* settleBackgroundWork({
@@ -11980,6 +12007,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       occurredAt: now,
       payload: interruptRequestItem,
     });
+    yield* recordStoppedBackgroundWork();
     yield* stopRemainingWork();
     yield* Ref.update(effects, (existing) => [
       ...existing,
