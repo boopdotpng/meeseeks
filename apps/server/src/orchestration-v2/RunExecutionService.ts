@@ -519,8 +519,6 @@ export function routeProviderEvent(
       ];
     case "background_work.updated":
       return [state.ownedProviderTurns.has(event.providerTurnId), state];
-    case "steer.read":
-      return [ownsThread(event.threadId), state];
     case "command_output.delta":
     case "prompt_suggestion.updated":
       // The session manager serves these to clients directly; runs never see them.

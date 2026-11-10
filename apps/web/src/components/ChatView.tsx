@@ -91,7 +91,6 @@ import {
 import {
   getUserQueuedThreadRuns,
   threadSupportsProviderHandoff,
-  threadSupportsSteerWithdrawal,
 } from "@t3tools/client-runtime/state/thread-workflows";
 import { resolvePendingHandoff } from "@t3tools/client-runtime/handoff";
 import { HandoffRow } from "./chat/V2LifecycleRow";
@@ -460,7 +459,6 @@ export default function ChatView(props: ChatViewProps) {
   const interruptThreadTurn = useOrchestrationCommand(threadEnvironment.interruptTurn, {
     reportFailure: false,
   });
-  const withdrawSteer = useAtomCommand(threadEnvironment.withdrawSteer);
   const loadEarlierThreadHistory = useAtomCommand(threadEnvironment.loadEarlierHistory, {
     label: "load earlier thread history",
     reportFailure: false,
@@ -1544,15 +1542,6 @@ export default function ChatView(props: ChatViewProps) {
     entry.kind === "message" ? [entry.message] : [],
   );
   const timelineEmpty = timelineEntries.length === 0 && !hasStreamedTimelineRows;
-  const withdrawSteerStable = useStableCallback((messageId: MessageId) => {
-    if (activeThreadRef === null) return;
-    void withdrawSteer({
-      environmentId: activeThreadRef.environmentId,
-      input: { threadId: activeThreadRef.threadId, messageId },
-    });
-  });
-  const canWithdrawSteer =
-    serverProjection !== null && threadSupportsSteerWithdrawal(serverProjection);
   const displayedTimelineKey = activeThreadKey ?? routeThreadKey;
   const displayedThreadRef = parseScopedThreadKey(displayedTimelineKey);
   const {
@@ -3450,7 +3439,6 @@ export default function ChatView(props: ChatViewProps) {
                   onCancelWorktreeSetup={onCancelWorktreeSetupStable}
                   retryableWorkspacePreparationRunIds={retryableWorkspacePreparationRunIds}
                   onRetryWorkspacePreparation={onRetryWorkspacePreparationStable}
-                  {...(canWithdrawSteer ? { onWithdrawSteer: withdrawSteerStable } : {})}
                   {...(draftId
                     ? { onWorktreeSetupWorkLocally: onWorktreeSetupWorkLocallyStable }
                     : {})}

@@ -78,7 +78,6 @@ import type {
   ProviderInstanceId,
   RuntimeMode,
   ThreadId,
-  MessageId,
 } from "@t3tools/contracts";
 import * as CodexClient from "effect-codex-app-server/client";
 import * as CodexErrors from "effect-codex-app-server/errors";
@@ -267,7 +266,6 @@ export const CodexProviderCapabilitiesV2 = {
     supportsInterrupt: true,
     supportsActiveSteering: true,
     supportsSteeringByInterruptRestart: true,
-    steeringReadReceipts: true,
     supportsQueuedMessages: true,
     terminalStatusQuality: "strong",
   },
@@ -2008,40 +2006,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           { readonly context: ActiveCodexTurnContext; readonly retry: ActiveCodexProviderRetry }
         >();
         const goalActivations = new Map<string, { stopped: boolean }>();
-        // Steers Codex has not yet recorded into the turn, oldest first, by native turn id.
-        const pendingSteers = new Map<
-          string,
-          Array<{ readonly threadId: ThreadId; readonly messageId: MessageId }>
-        >();
-        const rootUserMessageItems = new Map<string, Set<string>>();
-        const markSteerRead = Effect.fnUntraced(function* (
-          nativeTurnId: string,
-          item: { readonly id: string; readonly clientId?: string | null },
-        ) {
-          const seen = rootUserMessageItems.get(nativeTurnId) ?? new Set<string>();
-          rootUserMessageItems.set(nativeTurnId, seen);
-          if (seen.has(item.id)) return;
-          seen.add(item.id);
-          const steers = pendingSteers.get(nativeTurnId);
-          if (steers === undefined || steers.length === 0) return;
-          // Codex echoes clientUserMessageId as clientId; without it, the turn's
-          // first user message is its own prompt and later ones are steers in order.
-          const index =
-            typeof item.clientId === "string"
-              ? steers.findIndex((steer) => steer.messageId === item.clientId)
-              : seen.size === 1
-                ? -1
-                : 0;
-          if (index === -1) return;
-          const [steer] = steers.splice(index, 1);
-          if (steer === undefined) return;
-          yield* emitProviderEvent({
-            type: "steer.read",
-            driver: CODEX_PROVIDER,
-            threadId: steer.threadId,
-            messageId: steer.messageId,
-          });
-        });
         // Held runs must not complete while Stop resolves its target.
         const goalStops = new Map<string, number>();
         const latestRunTurnId = (providerTurnId: ProviderTurnId) =>
@@ -4967,9 +4931,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             }
 
             if (payload.item.type === "userMessage") {
-              if (context.subagent === null) {
-                yield* markSteerRead(payload.turnId, payload.item);
-              }
               yield* emitSubagentUserMessage(
                 context,
                 payload.item,
@@ -5137,9 +5098,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             }
 
             if (payload.item.type === "userMessage") {
-              if (context.subagent === null) {
-                yield* markSteerRead(payload.turnId, payload.item);
-              }
               if (yield* emitSubagentUserMessage(context, payload.item)) {
                 return;
               }
@@ -6717,8 +6675,6 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
 
         yield* client.handleServerNotification("turn/completed", (payload) =>
           Effect.gen(function* () {
-            pendingSteers.delete(payload.turn.id);
-            rootUserMessageItems.delete(payload.turn.id);
             const context = (yield* Ref.get(activeTurns)).get(payload.turn.id);
             if (context === undefined) {
               return;
@@ -7443,28 +7399,11 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               }
 
               const codexInput = yield* toCodexInput(turnInput);
-              const nativeTurnId = activeTurn.nativeTurnId;
-              const steer = {
-                threadId: turnInput.threadId,
-                messageId: turnInput.message.messageId,
-              };
-              // Recorded before the request: Codex can start the item before answering it.
-              pendingSteers.set(nativeTurnId, [...(pendingSteers.get(nativeTurnId) ?? []), steer]);
-              yield* client
-                .request("turn/steer", {
-                  clientUserMessageId: steer.messageId,
-                  expectedTurnId: nativeTurnId,
-                  input: codexInput,
-                  threadId,
-                })
-                .pipe(
-                  Effect.onError(() =>
-                    Effect.sync(() => {
-                      const remaining = pendingSteers.get(nativeTurnId)?.filter((s) => s !== steer);
-                      if (remaining !== undefined) pendingSteers.set(nativeTurnId, remaining);
-                    }),
-                  ),
-                );
+              yield* client.request("turn/steer", {
+                expectedTurnId: activeTurn.nativeTurnId,
+                input: codexInput,
+                threadId,
+              });
             },
             (effect, turnInput) =>
               effect.pipe(

@@ -35,7 +35,6 @@ import {
   promoteQueuedRun,
   resumeThreadQueue,
   retryWorkspacePreparation,
-  withdrawSteer,
   linkThreadPullRequest,
   respondToThreadApproval,
   respondToThreadUserInput,
@@ -351,12 +350,6 @@ export function createThreadEnvironmentAtoms<R, E>(
     cancelQueuedRun: createEnvironmentCommand(runtime, {
       label: "environment-data:commands:thread:cancel-queued-run",
       execute: cancelQueuedRun,
-      scheduler,
-      concurrency,
-    }),
-    withdrawSteer: createEnvironmentCommand(runtime, {
-      label: "environment-data:commands:thread:withdraw-steer",
-      execute: withdrawSteer,
       scheduler,
       concurrency,
     }),

@@ -244,18 +244,6 @@ function recorderThreadConfigKeys(transcript: CodexAppServerReplayTranscript): R
 function normalizeThreadRequest(frame: unknown, ignoredConfigKeys: ReadonlySet<string>): unknown {
   if (typeof frame !== "object" || frame === null) return frame;
   const record = frame as Record<string, unknown>;
-  // Steer message ids are minted per run, so recordings cannot pin them.
-  if (
-    record.method === "turn/steer" &&
-    typeof record.params === "object" &&
-    record.params !== null
-  ) {
-    const { clientUserMessageId: _clientUserMessageId, ...params } = record.params as Record<
-      string,
-      unknown
-    >;
-    return { ...record, params };
-  }
   if (
     (record.method !== "thread/start" &&
       record.method !== "thread/resume" &&

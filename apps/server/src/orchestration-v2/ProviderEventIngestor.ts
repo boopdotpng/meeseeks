@@ -41,7 +41,6 @@ import { makeProviderFailureTurnItem } from "@t3tools/provider-core/server/failu
 import * as ThreadCommandExecutor from "./ThreadCommandExecutor.ts";
 import { stripUnservedToolOutputImageBytes } from "./toolOutputImageBytes.ts";
 import { boundFileChangeForStorage } from "./WireProjection.ts";
-import { findUnreadSteer } from "./SteerReceipts.ts";
 
 export class ProviderEventNormalizeError extends Schema.TaggedError<ProviderEventNormalizeError>()(
   "ProviderEventNormalizeError",
@@ -613,31 +612,6 @@ export const layer: Layer.Layer<
                   payload,
                   runId: plan.runId,
                   nodeId: plan.nodeId,
-                  occurredAt,
-                }),
-              ];
-            }
-            case "steer.read": {
-              const records = yield* projections.getThreadRecords(
-                input.event.threadId,
-                ["turnItems"],
-                { turnItemTypes: ["user_message"], turnItemStatuses: ["pending"] },
-              );
-              const item = findUnreadSteer(records.turnItems, input.event.messageId);
-              if (item === undefined) return [];
-              const occurredAt = yield* DateTime.now;
-              return [
-                yield* makeDomainEvent(input, {
-                  type: "turn-item.updated",
-                  threadId: input.event.threadId,
-                  payload: {
-                    ...item,
-                    status: "completed",
-                    completedAt: occurredAt,
-                    updatedAt: occurredAt,
-                  },
-                  runId: item.runId,
-                  nodeId: item.nodeId,
                   occurredAt,
                 }),
               ];

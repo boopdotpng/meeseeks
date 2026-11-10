@@ -87,8 +87,6 @@ export interface ChatMessage {
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly inputIntent?: OrchestrationV2UserMessageInputIntent | undefined;
-  /** A steer the model has not taken yet, on a run that is still going. */
-  readonly unreadSteer?: true | undefined;
 }
 
 export interface ProposedPlan {

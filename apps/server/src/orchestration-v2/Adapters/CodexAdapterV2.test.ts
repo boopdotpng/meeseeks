@@ -2044,117 +2044,6 @@ describe("CodexAdapterV2 post-settle continuation", () => {
         event.type === "message.updated" && event.message.role === "assistant",
     );
 
-  it.effect.each([
-    { echo: true, recorded: true },
-    { echo: false, recorded: true },
-    { echo: false, recorded: false },
-  ] as const)(
-    "reports a steer read only when Codex records it (clientId echo: $echo, recorded: $recorded)",
-    ({ echo, recorded }) =>
-      Effect.scoped(
-        Effect.gen(function* () {
-          const nativeThreadId = "steer-read-thread";
-          const nativeTurnId = "steer-read-turn";
-          const steerMessageId = MessageId.make("steer-read-message");
-          const userMessageItem = (id: string, text: string, clientId: string | null) => ({
-            type: "emit_inbound" as const,
-            frame: {
-              method: "item/started",
-              params: {
-                threadId: nativeThreadId,
-                turnId: nativeTurnId,
-                startedAtMs: 1782622441000,
-                item: { type: "userMessage", id, clientId, content: [{ type: "text", text }] },
-              },
-            },
-          });
-          const transcript = makeCodexReplayTranscript({
-            scenario: `steer-read-${echo}-${recorded}`,
-            entries: [
-              ...codexReplayPreamble({ nativeThreadId, nativeTurnId, prompt: "Start." }),
-              {
-                type: "expect_outbound",
-                frame: {
-                  id: 4,
-                  method: "turn/steer",
-                  params: {
-                    threadId: nativeThreadId,
-                    clientUserMessageId: steerMessageId,
-                    expectedTurnId: nativeTurnId,
-                    input: [{ type: "text", text: "Steer." }],
-                  },
-                },
-              },
-              { type: "emit_inbound", frame: { id: 4, result: { turnId: nativeTurnId } } },
-              // Codex records the turn's own prompt first; it must not count as the steer.
-              userMessageItem("prompt-item", "Start.", null),
-              ...(recorded
-                ? [userMessageItem("steer-item", "Steer.", echo ? steerMessageId : null)]
-                : []),
-              {
-                type: "emit_inbound",
-                frame: {
-                  method: "turn/completed",
-                  params: {
-                    threadId: nativeThreadId,
-                    turn: makeCodexReplayTurn({ id: nativeTurnId, status: "completed" }),
-                  },
-                },
-              },
-            ],
-          });
-          const harness = yield* makeCodexReplayHarness(transcript);
-          const turnInput = makeCodexTestTurnInput({
-            threadId: harness.threadId,
-            providerThread: harness.providerThread,
-            now: yield* DateTime.now,
-            attemptId: RunAttemptId.make("steer-read-attempt"),
-            text: "Start.",
-          });
-          yield* harness.runtime.startTurn(turnInput);
-          yield* harness.until(() =>
-            harness.events.some(
-              (event) =>
-                event.type === "provider_turn.updated" && event.providerTurn.status === "running",
-            ),
-          );
-          const running = harness.events.find(
-            (event) =>
-              event.type === "provider_turn.updated" && event.providerTurn.status === "running",
-          );
-          if (running?.type !== "provider_turn.updated") return assert.fail("turn never ran");
-          yield* harness.runtime.steerTurn({
-            ...turnInput,
-            providerTurnId: running.providerTurn.id,
-            message: { ...turnInput.message, messageId: steerMessageId, text: "Steer." },
-          });
-          yield* harness.firstTerminal;
-          assert.deepEqual(
-            harness.events.filter((event) => event.type === "steer.read"),
-            recorded
-              ? [
-                  {
-                    type: "steer.read",
-                    driver: "codex",
-                    threadId: harness.threadId,
-                    messageId: steerMessageId,
-                  },
-                ]
-              : [],
-          );
-        }),
-      ).pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            IdAllocator.layer,
-            McpProviderSessions.layer,
-            NodeServices.layer,
-            NodeCrypto.layer,
-          ),
-        ),
-      ),
-  );
-
   it.effect("keeps an asynchronous Codex question actionable after the turn completes", () =>
     Effect.scoped(
       Effect.gen(function* () {
@@ -3388,7 +3277,6 @@ describe("CodexAdapterV2 post-settle continuation", () => {
                   params: steering
                     ? {
                         threadId: nativeThreadId,
-                        clientUserMessageId: `message-${scenario}`,
                         expectedTurnId: nativeTurnId(attempt),
                         input: [{ type: "text", text: steeredText }],
                       }

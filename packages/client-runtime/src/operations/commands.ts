@@ -250,10 +250,6 @@ export interface CancelQueuedRunInput extends ThreadCommandInput {
   readonly runId: RunId;
 }
 
-export interface WithdrawSteerInput extends ThreadCommandInput {
-  readonly messageId: MessageId;
-}
-
 export interface RetryWorkspacePreparationInput extends ThreadCommandInput {
   readonly runId: RunId;
 }
@@ -1062,17 +1058,6 @@ export const cancelQueuedRun = Effect.fn("EnvironmentCommands.cancelQueuedRun")(
     commandId: yield* allocateCommandId(input),
     threadId: input.threadId,
     runId: input.runId,
-  });
-});
-
-export const withdrawSteer = Effect.fn("EnvironmentCommands.withdrawSteer")(function* (
-  input: WithdrawSteerInput,
-) {
-  return yield* dispatch({
-    type: "steer.withdraw",
-    commandId: yield* allocateCommandId(input),
-    threadId: input.threadId,
-    messageId: input.messageId,
   });
 });
 
