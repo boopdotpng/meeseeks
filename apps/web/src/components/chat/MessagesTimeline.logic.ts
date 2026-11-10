@@ -1519,16 +1519,7 @@ export function deriveMessagesTimelineRows(input: {
   toolCallVisibility?: ToolCallVisibility;
   revealedMessageId?: MessageId | null;
 }): MessagesTimelineRow[] {
-  const rowEntries = timelineRowEntries(input);
-  // Unread steers sit by the composer until the model takes them, so output it
-  // streams in the meantime never appears to answer them.
-  const isUnreadSteer = (
-    entry: TimelineEntry,
-  ): entry is Extract<TimelineEntry, { kind: "message" }> =>
-    entry.kind === "message" && entry.message.unreadSteer === true;
-  const unreadSteers = rowEntries.filter(isUnreadSteer);
-  const timelineEntries =
-    unreadSteers.length === 0 ? rowEntries : rowEntries.filter((entry) => !isUnreadSteer(entry));
+  const timelineEntries = timelineRowEntries(input);
   const isPendingApproval = (entry: WorkLogEntry) => {
     const item = entry.projectedItem?.item;
     return (
@@ -2273,20 +2264,6 @@ export function deriveMessagesTimelineRows(input: {
   const result = attachTrailingToolGroupsToAssistant(
     attachCreatedThreadSummaries(nextRows, timelineEntries, collapsedFoldMemberIds),
   );
-  for (const steer of unreadSteers) {
-    result.push({
-      kind: "message",
-      id: steer.id,
-      createdAt: steer.createdAt,
-      message: steer.message,
-      ...(steer.projectedItem === undefined ? {} : { projectedItem: steer.projectedItem }),
-      showAssistantMeta: false,
-      showAssistantCopyButton: false,
-      assistantCopyStreaming: false,
-      assistantTurnDiffSummary: undefined,
-      revertTurnCount: undefined,
-    });
-  }
   return result.map((row, index) => {
     if (timelineRowIsWorkLog(row) && timelineRowIsWorkLog(result[index + 1])) {
       return { ...row, continuesWorkLog: true };

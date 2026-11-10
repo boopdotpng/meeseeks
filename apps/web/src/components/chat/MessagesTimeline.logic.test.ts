@@ -202,16 +202,6 @@ describe("deriveMessagesTimelineRows", () => {
       expect(live[0]).toMatchObject({ entry: { id: entries.at(-1)!.id } });
     }
     expect(first.kind === "work" && first.entry.toolLifecycleStatus).toBe("inProgress");
-
-    const unreadSteer = {
-      ...steer,
-      message: { ...steer.message, unreadSteer: true as const },
-    } satisfies TimelineEntry;
-    const waiting = rows([first, unreadSteer, next]);
-    expect(waiting.at(-1)).toMatchObject({ kind: "message", id: "steer" });
-    expect(waiting.filter((row) => row.kind === "work-live" && row.active)).toMatchObject([
-      { entry: { id: "next-thought" } },
-    ]);
   });
 
   it("recovers the failed Sky call stored as a generic js integration", () => {
