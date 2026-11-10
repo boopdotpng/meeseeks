@@ -1,3 +1,4 @@
+import { listenForDoubleEscapeStop } from "./chat/doubleEscapeStop";
 import { ChildThreadApprovals } from "./chat/ChildThreadApprovals";
 import { workspaceAreaProps } from "../lib/workspaceFocus";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
@@ -1824,28 +1825,10 @@ export default function ChatView(props: ChatViewProps) {
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- window listener: pressing Escape twice stops the running turn
   useEffect(() => {
     if (embedded) return;
-    let lastEscapeAt = 0;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.repeat || event.isComposing) return;
-      // Escape that closed a menu, dialog or recording does not count toward a stop.
-      const target = event.target instanceof Element ? event.target : null;
-      if (
-        event.defaultPrevented ||
-        !canInterruptNow() ||
-        target?.closest('[role="dialog"],[role="menu"],[role="listbox"]')
-      ) {
-        lastEscapeAt = 0;
-        return;
-      }
-      if (event.timeStamp - lastEscapeAt < 500) {
-        lastEscapeAt = 0;
-        void onInterruptStable();
-      } else {
-        lastEscapeAt = event.timeStamp;
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    return listenForDoubleEscapeStop(window, {
+      canStop: canInterruptNow,
+      onStop: () => void onInterruptStable(),
+    });
   }, [embedded, canInterruptNow, onInterruptStable]);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- window listener for the desktop snapshot event that focuses the composer
   useEffect(
