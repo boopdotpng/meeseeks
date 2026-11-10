@@ -65,7 +65,9 @@ fi
 if [[ "$step" != build ]]; then
   archive="$(ls "$out"/*.tar.gz)"
   runtime="$HOME/.t3/runtime"
-  active="$(node -p "require('$runtime/service-state.json').activeVersion")"
+  # Install under the built version: the desktop's SSH launcher runs versions/<its own version>
+  # and downloads stock upstream when that directory is missing.
+  active="$(node -p "require('$repo/apps/server/package.json').version")"
   target="$runtime/versions/$active"
   staging="$(mktemp -d "$runtime/meeseeks-staging.XXXXXX")"
   tar -xzf "$archive" -C "$staging"
@@ -75,9 +77,18 @@ if [[ "$step" != build ]]; then
   printf '%s\n' "$active" > "$built/.install-complete"
 
   rm -rf "$runtime/meeseeks-prev"
-  mv "$target" "$runtime/meeseeks-prev"
+  if [[ -d "$target" ]]; then mv "$target" "$runtime/meeseeks-prev"; fi
   mv "$built" "$target"
   rmdir "$staging"
+  node -e '
+    const fs = require("fs");
+    const [file, version] = process.argv.slice(1);
+    const state = JSON.parse(fs.readFileSync(file, "utf8"));
+    state.activeVersion = version;
+    // A committed update must target activeVersion; this swap is not an update.
+    delete state.update;
+    fs.writeFileSync(file, JSON.stringify(state, null, 2) + "\n");
+  ' "$runtime/service-state.json" "$active"
   echo "[deploy] installed $(cat "$target/MEESEEKS_COMMIT") as t3@$active; restarting t3code.service"
   systemctl --user restart t3code.service
   systemctl --user --no-pager status t3code.service | head -5
