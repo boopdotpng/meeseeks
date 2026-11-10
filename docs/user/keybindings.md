@@ -165,6 +165,9 @@ a shortcut.
 shortcut; assign one in **Settings → Keybindings**. Pressing `Esc` twice quickly also
 stops the running turn, unless the first press closed a menu or dialog or cancelled dictation.
 
+`thread.regenerateTitle` generates a new title for the focused thread, like
+**Regenerate title** in the thread menu. It has no default shortcut.
+
 `thread.undo` (`mod+z` by default) reverses the actions shown in the notice at the
 bottom of the sidebar, such as unpin, settle, snooze, archive, or discarding a
 draft. Consecutive
