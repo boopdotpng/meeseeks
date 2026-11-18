@@ -98,6 +98,7 @@ it.effect.each([
           dispatch: () => Effect.succeed({ sequence: 0, storedEvents: [] }),
           recoverDelegatedTask: () => Effect.void,
         }),
+        Layer.mock(ProjectionStore.ProjectionStoreV2)({}),
         ServerSettings.layerTest(),
         Layer.mock(ProviderTurnStart.ProviderTurnStartServiceV2)({
           start: () => Effect.sync(() => calls.push("start")).pipe(Effect.asVoid),

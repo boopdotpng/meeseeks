@@ -28,9 +28,13 @@ import {
   type SpeechModelUnloadTimeout,
   type VoiceShortcutMode,
 } from "@t3tools/contracts";
-import { createModelSelection } from "@t3tools/shared/model";
+import { createModelSelection, pickModelSelection } from "@t3tools/shared/model";
 import { resolveSpeechPostProcessingModelSelection } from "@t3tools/shared/serverSettings";
-import { cloudSpeechLanguages } from "@t3tools/shared/speech";
+import {
+  cloudSpeechLanguages,
+  recommendSpeechModels,
+  type SpeechRecommendationRole,
+} from "@t3tools/shared/speech";
 import {
   ArrowDownUpIcon,
   AudioLinesIcon,
@@ -72,7 +76,7 @@ import {
 import { updateClientSettings, useClientSettings } from "../../hooks/useSettings";
 import { runEnvironmentSpeech } from "../../speech/runEnvironmentSpeech";
 import {
-  getCustomModelOptionsByInstance,
+  getTextGenerationModelOptionsByInstance,
   resolveAppModelSelectionState,
 } from "../../modelSelection";
 import { useTextGenerationTargets } from "../../textGenerators";
@@ -176,7 +180,8 @@ const spellingsOf = (words: SpeechCustomWords) =>
 type ModelCardProps = {
   readonly model: EnvironmentSpeechModel;
   readonly comparisonLanguages: readonly string[];
-  readonly benchmarkTier: SpeechBenchmarkTier;
+  readonly recommendation: SpeechRecommendationRole | undefined;
+  readonly benchmarkTier: SpeechBenchmarkTier | undefined;
   readonly busy: boolean;
   readonly canCancel: boolean;
   readonly onDownload: () => void;
@@ -217,11 +222,23 @@ function ModelCard(props: ModelCardProps) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-sm font-medium leading-5">{model.name}</span>
-            {model.recommended ? (
+            {props.recommendation ? (
               <ModelBadge
                 icon={<StarIcon className="mr-1 size-3" />}
-                label="Recommended"
-                tooltip="A good default pick for the languages it covers."
+                label={
+                  props.recommendation === "recommended"
+                    ? "Recommended"
+                    : props.recommendation === "faster"
+                      ? "Faster"
+                      : "More accurate"
+                }
+                tooltip={
+                  props.recommendation === "recommended"
+                    ? "Balanced accuracy and speed for your selected languages on Handy’s reference benchmarks."
+                    : props.recommendation === "faster"
+                      ? "Quicker than Recommended on this reference tier, with useful accuracy."
+                      : "Higher accuracy with a longer reference processing budget for your selected languages."
+                }
               />
             ) : null}
             {model.supportsStreaming ? (
@@ -391,6 +408,7 @@ function DictionaryEditor(props: {
             aria-label={`Add a word or phrase to the ${label}`}
             onChange={(event) => setTermDraft(event.target.value)}
             onKeyDown={(event) => {
+              if (event.nativeEvent.isComposing || event.keyCode === 229) return;
               if (event.key !== "Enter" || event.shiftKey) return;
               event.preventDefault();
               addTerm();
@@ -427,6 +445,7 @@ function DictionaryEditor(props: {
                   onChange={(event) => setAliasDraft({ term, value: event.target.value })}
                   onBlur={() => setAliasDraft(null)}
                   onKeyDown={(event) => {
+                    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
                     if (event.key === "Escape") setAliasDraft(null);
                     if (event.key !== "Enter") return;
                     event.preventDefault();
@@ -529,14 +548,14 @@ function CleanupModelRow() {
     },
     textGenerationProviders,
   );
-  const modelOptionsByInstance = getCustomModelOptionsByInstance(
+  const modelOptionsByInstance = getTextGenerationModelOptionsByInstance(
     settings,
     textGenerationProviders,
     selection.instanceId,
     selection.model,
   );
   const instanceEntry = instanceEntries.find((entry) => entry.instanceId === selection.instanceId);
-  const modelDisabledReason = useScopedModelDisabledReason(settings, instanceEntries);
+  const modelDisabledReason = useScopedModelDisabledReason(settings, instanceEntries, true);
   const setModel = (next: ReturnType<typeof createModelSelection>) => {
     const reason = modelDisabledReason(next.instanceId, next.model);
     if (reason) {
@@ -574,7 +593,7 @@ function CleanupModelRow() {
                   triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
                   getModelDisabledReason={modelDisabledReason}
                   onInstanceModelChange={(instanceId, model) =>
-                    setModel(createModelSelection(instanceId, model))
+                    setModel(pickModelSelection(selection, instanceId, model))
                   }
                 />
                 <TraitsPicker
@@ -726,11 +745,34 @@ function AdvancedSpeechSettings({
   prepared: PreparedConnection;
   catalog: VoiceModels;
 }) {
+  const settings = useClientSettings();
   const { run, controlsDisabled, status } = catalog;
   if (!status?.supported) return null;
   const supported = status;
   return (
-    <AdvancedSettings targetIds={[searchableSetting("speech-hardware").id]}>
+    <AdvancedSettings
+      targetIds={[
+        searchableSetting("speech-streaming").id,
+        searchableSetting("speech-hardware").id,
+      ]}
+    >
+      <SettingsRow
+        {...searchableSetting("speech-streaming")}
+        title="Streaming transcription"
+        description={
+          supported.supportsStreaming
+            ? "Transcribe while recording. Turn off to transcribe after stopping, which may help when live transcription falls behind."
+            : "This model doesn’t support native streaming."
+        }
+        control={
+          <Switch
+            aria-label="Streaming transcription"
+            disabled={!supported.supportsStreaming}
+            checked={settings.speechStreaming}
+            onCheckedChange={(checked) => void updateClientSettings({ speechStreaming: checked })}
+          />
+        }
+      />
       <SettingsRow
         {...searchableSetting("speech-hardware")}
         title="Hardware"
@@ -846,14 +888,20 @@ function SpeechModelBrowser(props: {
     selectedLanguages.length === 0
       ? "All languages"
       : selectedLanguages.map(languageLabel).join(", ");
-  const sortedModels = filterSpeechModels(models, {
-    search,
-    languages: selectedLanguages,
-    downloadedOnly,
-    sort,
-    accuracyLanguage,
-    benchmarkTier: status?.supported ? status.benchmarkTier : "accelerated",
-  });
+  const benchmarkTier = status?.supported ? status.benchmarkTier : undefined;
+  const recommendations = recommendSpeechModels(models, selectedLanguages, benchmarkTier);
+  const sortedModels = filterSpeechModels(
+    models,
+    {
+      search,
+      languages: selectedLanguages,
+      downloadedOnly,
+      sort,
+      accuracyLanguage,
+      benchmarkTier,
+    },
+    recommendations,
+  );
   const activeModel = models.find((model) => model.active);
   const renderedModels =
     activeModel && !sortedModels.includes(activeModel)
@@ -873,7 +921,7 @@ function SpeechModelBrowser(props: {
     <SettingsRow
       {...searchableSetting("speech-models")}
       title="Models"
-      description={`Grades are error rates and speed is seconds per 30 s of audio, from Handy’s benchmark ${status.benchmarkTier === "cpu" ? "CPU" : "GPU"}.`}
+      description={`Grades and seconds per 30 s use Handy’s reference ${status.benchmarkTier === "cpu" ? "CPU" : "GPU"}, not your hardware. Select languages for balanced recommendations.`}
       className="@container/voice-models"
     >
       <div className="mt-3 flex min-w-0 gap-2">
@@ -993,6 +1041,7 @@ function SpeechModelBrowser(props: {
             busy: controlsDisabled,
             canCancel,
             comparisonLanguages: selectedLanguages,
+            recommendation: recommendations.get(model.id),
             benchmarkTier: status.benchmarkTier,
             onDownload: () =>
               void run(
@@ -1081,7 +1130,6 @@ function TranscriptionTest(props: {
     projectId: props.projectId,
     projectName: props.projectName,
     ownerKey: JSON.stringify([props.environmentId, props.projectId]),
-    draftText: draft,
     cleanup: false,
     readDraft: () => ({
       text: draftRef.current,
@@ -1275,6 +1323,7 @@ export function VoiceSettingsPanel() {
           model || destination.cloudProvider ? undefined : "voice-transcription-destination",
         "speech-models": prepared ? undefined : "voice-transcription-destination",
         "speech-hardware": prepared && model ? undefined : "voice-transcription-destination",
+        "speech-streaming": prepared && model ? undefined : "voice-transcription-destination",
         "transcription-test": !prepared
           ? "voice-transcription-destination"
           : !model || model.state === "missing-model"
