@@ -6,6 +6,7 @@ import {
   type ProviderSetupError,
 } from "@t3tools/contracts";
 import type { SelfInvocation } from "@t3tools/shared/nodeRuntime";
+import { acpPermissionDisposition } from "@t3tools/provider-acp/server/clientPolicy";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -22,6 +23,7 @@ import type * as AcpSessionRuntime from "@t3tools/provider-acp/server/AcpSession
 import {
   antigravityAppendsSystemPrompt,
   antigravityPermissionMode,
+  antigravityRuntimeMode,
   antigravityRuntimeModeForSessionMode,
   applyAntigravityAcpModelSelection,
   buildAntigravityPrompt,
@@ -250,7 +252,9 @@ export function makeAntigravityAcpAdapterFlavor(
         mapError: (cause) => cause,
       });
     }),
-    sessionModeForPolicy: (policy) => antigravityPermissionMode(policy.runtimeMode),
+    sessionModeForPolicy: (policy) => antigravityPermissionMode(antigravityRuntimeMode(policy)),
+    permissionDisposition: (policy, request) =>
+      acpPermissionDisposition({ ...policy, runtimeMode: antigravityRuntimeMode(policy) }, request),
     runtimeModeForSessionMode: antigravityRuntimeModeForSessionMode,
     clientFileSystem: {
       readTextFile: (request, cwd) =>

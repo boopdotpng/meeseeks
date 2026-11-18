@@ -20,6 +20,7 @@ import {
   antigravitySessionMeta,
   buildAntigravityPrompt,
   isQualifiedAntigravityRelease,
+  antigravityRuntimeMode,
 } from "./AntigravityAcpSupport.ts";
 
 const modelConfig = {
@@ -98,6 +99,16 @@ describe("Antigravity release gates", () => {
       expect(antigravityClientInfo(version).name).toBe(ownName ? "t3-code" : "zed");
     },
   );
+});
+
+describe("antigravityRuntimeMode", () => {
+  it("runs Auto as Full access unless a managed ceiling forbids it", () => {
+    expect(antigravityRuntimeMode({ runtimeMode: "auto" })).toBe("full-access");
+    expect(antigravityRuntimeMode({ runtimeMode: "auto", maxRuntimeMode: "auto" })).toBe(
+      "approval-required",
+    );
+    expect(antigravityRuntimeMode({ runtimeMode: "auto-accept-edits" })).toBe("auto-accept-edits");
+  });
 });
 
 describe("applyAntigravityAcpModelSelection", () => {

@@ -4,6 +4,7 @@ import {
   PROVIDER_SEND_TURN_MAX_FILE_BYTES,
   PROVIDER_SEND_TURN_MAX_IMAGE_BYTES,
   type ProviderSendTurnInput,
+  isRuntimeModeAbove,
   type RuntimeMode,
 } from "@t3tools/contracts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
@@ -170,6 +171,20 @@ export const makeAntigravityAcpRuntime = Effect.fn("makeAntigravityAcpRuntime")(
   );
   return yield* Effect.service(AcpSessionRuntime.AcpSessionRuntime).pipe(Effect.provide(context));
 });
+
+/**
+ * Antigravity has no automatic review, so Auto runs as Full access. A managed ceiling below Full
+ * access keeps Auto in Supervised instead of escalating past what the administrator allowed.
+ */
+export function antigravityRuntimeMode(policy: {
+  readonly runtimeMode: RuntimeMode;
+  readonly maxRuntimeMode?: RuntimeMode | undefined;
+}): RuntimeMode {
+  if (policy.runtimeMode !== "auto") return policy.runtimeMode;
+  return isRuntimeModeAbove("full-access", policy.maxRuntimeMode)
+    ? "approval-required"
+    : "full-access";
+}
 
 export function antigravityPermissionMode(runtimeMode: RuntimeMode): string {
   switch (runtimeMode) {

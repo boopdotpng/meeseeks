@@ -187,8 +187,8 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
       presentation: {
         displayName: "Antigravity",
         showInteractionModeToggle: false,
-        // No automatic review, so Auto falls back to Supervised instead of approving everything.
-        supportedRuntimeModes: ["approval-required", "auto-accept-edits", "full-access"],
+        // No automatic review, so Auto runs as Full access (see antigravityRuntimeMode).
+        supportedRuntimeModes: ["approval-required", "auto-accept-edits", "auto", "full-access"],
       },
       enabled: settings.enabled,
       checkedAt,
