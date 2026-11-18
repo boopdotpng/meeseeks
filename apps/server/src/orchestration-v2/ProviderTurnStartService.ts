@@ -74,7 +74,6 @@ import {
   pendingRestartCancelledBackgroundWork,
   restartCancelledBackgroundWorkNote,
 } from "./RestartBackgroundNote.ts";
-import { batchedProviderText, foldedQueuedTurnItems } from "./QueuedRunBatch.ts";
 
 export class ProviderTurnStartError extends Schema.TaggedError<ProviderTurnStartError>()(
   "ProviderTurnStartError",
@@ -894,20 +893,10 @@ export const layer: Layer.Layer<
       });
       let effectiveHandoffs = handoffs;
       let resumeFellBack = false;
-      const foldedItems = foldedQueuedTurnItems(projection.turnItems, run);
-      const userText = batchedProviderText(
-        [providerMessage, ...foldedItems].map((part) => ({
-          ...part,
-          text: projectComposerContextForProvider({
-            text: part.text,
-            records: part.context?.records ?? [],
-          }),
-        })),
-      );
-      const attachments = [
-        ...providerMessage.attachments,
-        ...foldedItems.flatMap((item) => item.attachments),
-      ];
+      const userText = projectComposerContextForProvider({
+        text: providerMessage.text,
+        records: providerMessage.context?.records ?? [],
+      });
       // Native goal commands go verbatim; handoff history waits a turn.
       const goalDriver =
         session.driver === "codex" ||
@@ -1083,7 +1072,7 @@ export const layer: Layer.Layer<
               tokenCap,
               modelContextWindow,
               userText: restartNote === "" ? userText : `${restartNote}\n\n${userText}`,
-              attachments,
+              attachments: providerMessage.attachments,
               providerThread: budgetProviderThread,
               nativeContextEstimate:
                 budgetProviderThread.contextUsage?.usedTokens === undefined
@@ -1988,7 +1977,7 @@ export const layer: Layer.Layer<
         message: {
           messageId: message.id,
           text: userText,
-          attachments,
+          attachments: providerMessage.attachments,
           createdBy: message.createdBy,
           creationSource: message.creationSource,
           ...(message.scheduledTaskId === undefined

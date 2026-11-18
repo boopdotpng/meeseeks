@@ -236,31 +236,16 @@ export const layerExecutor: Layer.Layer<
                 ),
               );
           case "provider-turn.start":
-            return threads
-              .dispatch({
-                type: "run.absorb-queued",
-                commandId: CommandId.make(`command:absorb-queued:${effect.id}`),
-                threadId: effect.threadId,
-                runId: effect.request.runId,
-              })
-              .pipe(
-                // Folding is a nicety; the turn must still start without it.
-                Effect.catch((cause) =>
-                  Effect.logWarning("orchestration-v2.effect-worker.absorb-queued-failed", {
-                    threadId: effect.threadId,
+            return startRun(effect, effect.request.runId, willRetry).pipe(
+              Effect.mapError(
+                (cause) =>
+                  new OrchestrationEffectExecutionError({
+                    effectId: effect.id,
+                    effectType: effect.request.type,
                     cause,
                   }),
-                ),
-                Effect.andThen(startRun(effect, effect.request.runId, willRetry)),
-                Effect.mapError(
-                  (cause) =>
-                    new OrchestrationEffectExecutionError({
-                      effectId: effect.id,
-                      effectType: effect.request.type,
-                      cause,
-                    }),
-                ),
-              );
+              ),
+            );
           case "provider-turn.interrupt": {
             const request = effect.request;
             return providerTurnControl
@@ -419,14 +404,9 @@ export const layerExecutor: Layer.Layer<
                           : message.delegatedCompletion === undefined
                             ? {}
                             : { modelSelection: run.modelSelection }),
-                        // "auto" joins a follow-up already running or queues behind one
-                        // starting, so several missed steers end up in one turn.
                         dispatchMode: {
                           type: queued ? "queue_after_active" : "start_immediately",
                         },
-                        ...(message.delegatedCompletion === undefined
-                          ? { deliveryIntent: "auto" as const }
-                          : {}),
                         createdBy: message.createdBy,
                         creationSource: message.creationSource,
                         ...(message.delegatedCompletion === undefined

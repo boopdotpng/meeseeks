@@ -192,7 +192,6 @@ import * as RunExecutionService from "./RunExecutionService.ts";
 import { ProviderSessionManagerV2 } from "./ProviderSessionManager.ts";
 import { ProviderSwitchServiceV2 } from "./ProviderSwitchService.ts";
 import { isAutomaticCompletionRun, queuedRunsInDeliveryOrder } from "./QueuedRunOrder.ts";
-import { MAX_QUEUED_BATCH_SIZE, queuedRunBatch, queuedRunBatchEvents } from "./QueuedRunBatch.ts";
 import { isRuntimePolicyAboveCeilingError, RuntimePolicyV2 } from "./RuntimePolicy.ts";
 import {
   endOrphanedNativeSubagent,
@@ -667,7 +666,6 @@ function commandThreadId(command: OrchestrationV2ServerCommand): ThreadId {
     case "provider-session.detach":
     case "message.dispatch":
     case "notification.delivery.accept":
-    case "run.absorb-queued":
     case "prepared-run.release":
     case "prepared-run.progress":
     case "prepared-run.fail":
@@ -2531,13 +2529,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
           turnItemTypes: ["user_message", "notification"],
           turnItemRunIds: newerRunIds,
         })).turnItems.length > 0;
-      // Like Claude Code, everything that piled up while the agent was busy goes in one turn.
-      const batchMembers =
-        options?.queuedRunId === undefined && settings.batchQueuedMessages
-          ? queuedRunBatch(projection, storedQueuedRun)
-          : [];
-      const ordinal =
-        startedAhead || batchMembers.length > 0 ? nextRunOrdinal(projection) : queuedRun.ordinal;
+      const ordinal = startedAhead ? nextRunOrdinal(projection) : queuedRun.ordinal;
       const commandId = CommandId.make(`command:system:start-queued:${queuedRun.id}`);
       const rootNodeId = queuedRun.rootNodeId;
       const attemptId = queuedRun.activeAttemptId;
@@ -3009,18 +3001,6 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         updatedAt: now,
         ...(activeHandoff === null ? modelSwitchSince(projection, queuedRun.modelSelection) : {}),
       };
-      const batchEvents =
-        userTurnItem.type === "user_message"
-          ? queuedRunBatchEvents({
-              members: batchMembers,
-              projection,
-              target: startingRun,
-              rootNodeId,
-              firstItem: userTurnItem,
-              itemId: (messageId) => idAllocator.derive.userTurnItem({ messageId }),
-              occurredAt: now,
-            })
-          : [];
       const handoffTurnItem: OrchestrationV2TurnItem | null =
         activeHandoff === null
           ? null
@@ -3231,7 +3211,6 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
               yield* notificationTasks(threadId, queuedMessage, projection.subagents),
             ),
           },
-          ...batchEvents,
           {
             type: "run.updated",
             threadId,
@@ -15019,52 +14998,6 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
     }
   });
 
-  // Like Claude Code, messages that pile up before the model takes its prompt go in with it.
-  const dispatchRunAbsorbQueued = Effect.fn("orchestrationV2.runAbsorbQueued")(function* (
-    command: Extract<OrchestrationV2ServerCommand, { type: "run.absorb-queued" }>,
-    events: Ref.Ref<Array<OrchestrationV2DomainEvent>>,
-  ) {
-    if (!(yield* serverSettings.getSettings.pipe(Effect.orDie)).batchQueuedMessages) return;
-    const projection = yield* getProjectionWithPendingEvents(command.threadId, events);
-    const run = projection.runs.find((candidate) => candidate.id === command.runId);
-    if (
-      run === undefined ||
-      run.status !== "starting" ||
-      run.rootNodeId === null ||
-      projection.providerTurns.some((turn) => turn.runAttemptId === run.activeAttemptId)
-    ) {
-      return;
-    }
-    const rootNodeId = run.rootNodeId;
-    const runInputs = projection.turnItems.filter(
-      (item): item is Extract<OrchestrationV2TurnItem, { readonly type: "user_message" }> =>
-        item.type === "user_message" && item.runId === run.id && item.nodeId === rootNodeId,
-    );
-    const firstItem = runInputs.find((item) => item.messageId === run.userMessageId);
-    // Queue starts already batched, or sent one message on purpose with Send now.
-    if (firstItem?.inputIntent === "queued_turn") return;
-    const members = queuedRunBatch(projection, run).slice(
-      0,
-      Math.max(0, MAX_QUEUED_BATCH_SIZE - runInputs.length),
-    );
-    if (firstItem === undefined || members.length === 0) return;
-    // Batch items take ordinals after this one, so this places them after everything recorded.
-    const lastOrdinal = (yield* nextTurnItemOrdinal(projection)) - 1;
-    const now = yield* DateTime.now;
-    const emitEvent = emit(events, command);
-    for (const event of queuedRunBatchEvents({
-      members,
-      projection,
-      target: run,
-      rootNodeId,
-      firstItem: { ...firstItem, ordinal: lastOrdinal, inputIntent: "queued_turn" },
-      itemId: (messageId) => idAllocator.derive.userTurnItem({ messageId }),
-      occurredAt: now,
-    })) {
-      yield* emitEvent<OrchestrationV2DomainEvent>(event);
-    }
-  });
-
   const dispatchNotificationAccepted = Effect.fn("orchestrationV2.notificationAccepted")(function* (
     command: Extract<OrchestrationV2Command, { type: "notification.delivery.accept" }>,
     events: Ref.Ref<Array<OrchestrationV2DomainEvent>>,
@@ -15313,9 +15246,6 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       }
       case "notification.delivery.accept":
         updateDelegatedCompletionOnlyRunId = yield* dispatchNotificationAccepted(command, events);
-        break;
-      case "run.absorb-queued":
-        yield* dispatchRunAbsorbQueued(command, events);
         break;
       case "prepared-run.release":
         yield* dispatchPreparedRunRelease(command, events, effects);

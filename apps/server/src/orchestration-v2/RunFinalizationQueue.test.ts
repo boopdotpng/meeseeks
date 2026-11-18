@@ -95,7 +95,6 @@ it.effect.each([
         Layer.mock(RuntimeRequests.RuntimeRequestServiceV2)({}),
         Layer.mock(ThreadTitles.ThreadTitleRegenerationService)({}),
         Layer.mock(ThreadManagement.ThreadManagementService)({
-          dispatch: () => Effect.succeed({ sequence: 0, storedEvents: [] }),
           recoverDelegatedTask: () => Effect.void,
         }),
         Layer.mock(ProjectionStore.ProjectionStoreV2)({}),
