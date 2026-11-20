@@ -16,7 +16,6 @@ import * as Stream from "effect/Stream";
 
 import type { ProviderInstance } from "@t3tools/provider-core/server/driver";
 import { acpPermissionDisposition } from "@t3tools/provider-acp/server/clientPolicy";
-import { antigravityRuntimeMode } from "../provider/acp/AntigravityAcpSupport.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import * as ProviderInstanceRegistry from "../provider/ProviderInstanceRegistry.ts";
 import * as ProjectStore from "./ProjectStore.ts";
@@ -68,7 +67,7 @@ const grokInstanceId = ProviderInstanceId.make("grok");
 const antigravityInstanceId = ProviderInstanceId.make("antigravity");
 const supportedRuntimeModesByInstance = new Map<ProviderInstanceId, ReadonlyArray<RuntimeMode>>([
   [grokInstanceId, ["approval-required", "auto", "full-access"]],
-  [antigravityInstanceId, ["approval-required", "auto-accept-edits", "auto", "full-access"]],
+  [antigravityInstanceId, ["approval-required", "auto-accept-edits", "full-access"]],
 ]);
 const providerInstanceFor = (instanceId: ProviderInstanceId) =>
   ({
@@ -118,7 +117,7 @@ const layerWithPolicy = (policy?: ManagedPolicySummary) =>
 const layerTest = layerWithPolicy();
 
 it.layer(layerTest)("RuntimePolicyV2", (it) => {
-  it.effect("approves Antigravity commands in Auto, which runs as Full access", () =>
+  it.effect("asks for Antigravity command approval when a stored Auto thread falls back", () =>
     Effect.gen(function* () {
       const policy = yield* RuntimePolicy.RuntimePolicyV2;
       const now = yield* DateTime.now;
@@ -132,19 +131,11 @@ it.layer(layerTest)("RuntimePolicyV2", (it) => {
         toolCall: { toolCallId: "command-1", title: "Run command", kind: "execute" as const },
         options: [{ optionId: "allow", name: "Allow", kind: "allow_once" as const }],
       };
-      const disposition = (runtimeMode: RuntimeMode) =>
-        resolve(runtimeMode).pipe(
-          Effect.map((policy) =>
-            acpPermissionDisposition(
-              { ...policy, runtimeMode: antigravityRuntimeMode(policy) },
-              request,
-            ),
-          ),
-        );
-      assert.equal(yield* disposition("approval-required"), "ask");
-      assert.equal(yield* disposition("auto-accept-edits"), "ask");
-      assert.equal(yield* disposition("auto"), "allow");
-      assert.equal(yield* disposition("full-access"), "allow");
+      const auto = yield* resolve("auto");
+      assert.equal(auto.runtimeMode, "approval-required");
+      assert.equal(acpPermissionDisposition(auto, request), "ask");
+      assert.equal(acpPermissionDisposition(yield* resolve("auto-accept-edits"), request), "ask");
+      assert.equal(acpPermissionDisposition(yield* resolve("full-access"), request), "allow");
     }),
   );
 
