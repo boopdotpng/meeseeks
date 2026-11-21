@@ -5,7 +5,7 @@
 #   scripts/deploy-server.sh [host] [build|install|all]    (defaults: tens all)
 #
 # build:   pull the current branch into ~/builds/floof on the host and package a runtime archive.
-# install: replace the service's active runtime with that archive and restart the service.
+# install: replace the service's active runtime with that archive and reinstall the service from it.
 #          The previous runtime is kept at ~/.t3/runtime/meeseeks-prev.
 set -euo pipefail
 
@@ -80,16 +80,10 @@ if [[ "$step" != build ]]; then
   if [[ -d "$target" ]]; then mv "$target" "$runtime/meeseeks-prev"; fi
   mv "$built" "$target"
   rmdir "$staging"
-  node -e '
-    const fs = require("fs");
-    const [file, version] = process.argv.slice(1);
-    const state = JSON.parse(fs.readFileSync(file, "utf8"));
-    state.activeVersion = version;
-    // A committed update must target activeVersion; this swap is not an update.
-    delete state.update;
-    fs.writeFileSync(file, JSON.stringify(state, null, 2) + "\n");
-  ' "$runtime/service-state.json" "$active"
-  echo "[deploy] installed $(cat "$target/MEESEEKS_COMMIT") as t3@$active; restarting t3code.service"
+  echo "[deploy] installed $(cat "$target/MEESEEKS_COMMIT") as t3@$active; reinstalling t3code.service"
+  # The installer points the unit at this version but no-ops when it is already installed,
+  # and deploys reuse the version number, so restart to load the swapped runtime.
+  "$target/t3" service install --base-dir "$HOME/.t3"
   systemctl --user restart t3code.service
   systemctl --user --no-pager status t3code.service | head -5
 fi

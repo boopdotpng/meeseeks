@@ -27,7 +27,11 @@ import {
   acpPermissionDisposition,
   type AcpRuntimePolicy,
 } from "@t3tools/provider-acp/server/clientPolicy";
-import type { AcpSessionModeState } from "@t3tools/provider-acp/server/runtimeModel";
+import {
+  extractMcpToolCallIdentity,
+  parsePermissionRequest,
+  type AcpSessionModeState,
+} from "@t3tools/provider-acp/server/runtimeModel";
 import packageJson from "../../../package.json" with { type: "json" };
 import { normalizeAntigravitySessionUpdate } from "./AntigravityProtocol.ts";
 
@@ -181,13 +185,25 @@ export function antigravitySessionMode(
   return modeId === "yolo" || modeId === "auto_edit" ? "default" : modeId;
 }
 
+// agy 1.5.8+ titles direct MCP calls "Run mcp_<server>_<tool>", with "?" on prompts.
+const ANTIGRAVITY_MCP_CALL_TITLE = /^Run mcp_[^\s?]+\??$/;
+
 export function antigravityPermissionDisposition(
   policy: AcpRuntimePolicy,
   request: EffectAcpSchema.RequestPermissionRequest,
 ) {
   const disposition = acpPermissionDisposition(policy, request);
-  // agy's Auto has already reviewed what it sends; the user decides unless the sandbox forbids it.
-  return policy.runtimeMode === "auto" && disposition !== "deny" ? "ask" : disposition;
+  if (policy.runtimeMode !== "auto" || disposition === "deny") return disposition;
+  // agy's Auto escalates every MCP call; like Codex's MCP approvals, Auto lets them run.
+  const toolCall = parsePermissionRequest(request).toolCall;
+  if (
+    ANTIGRAVITY_MCP_CALL_TITLE.test(request.toolCall.title ?? "") ||
+    (toolCall !== undefined && extractMcpToolCallIdentity(toolCall) !== undefined)
+  ) {
+    return disposition;
+  }
+  // agy's Auto has already reviewed what it sends; the user decides.
+  return "ask";
 }
 
 /** The runtime mode an Antigravity session mode grants; the inverse of `antigravityPermissionMode`. */
