@@ -28,11 +28,7 @@ import {
   unknownRecord,
   type AcpRuntimePolicy,
 } from "@t3tools/provider-acp/server/clientPolicy";
-import {
-  extractMcpToolCallIdentity,
-  parsePermissionRequest,
-  type AcpSessionModeState,
-} from "@t3tools/provider-acp/server/runtimeModel";
+import type { AcpSessionModeState } from "@t3tools/provider-acp/server/runtimeModel";
 import { T3_MCP_TOOL_NAMES } from "@t3tools/shared/t3McpToolPresentation";
 import packageJson from "../../../package.json" with { type: "json" };
 import { normalizeAntigravitySessionUpdate } from "./AntigravityProtocol.ts";
@@ -187,9 +183,6 @@ export function antigravitySessionMode(
   return modeId === "yolo" || modeId === "auto_edit" ? "default" : modeId;
 }
 
-// agy 1.5.8+ titles direct MCP calls "Run mcp_<server>_<tool>", with "?" on prompts.
-const ANTIGRAVITY_MCP_CALL_TITLE = /^Run mcp_[^\s?]+\??$/;
-
 // Only calls that name T3's server: before agy 1.5.8 "Running <tool>" names no server, so another
 // MCP server's tool of the same name would pass.
 const ANTIGRAVITY_T3_MCP_TITLE = /^Run mcp_t3-code_(?<tool>[A-Za-z0-9_]+)\??$/;
@@ -208,35 +201,22 @@ function isAntigravityT3McpRequest(request: EffectAcpSchema.RequestPermissionReq
   return tool !== undefined && T3_MCP_TOOL_NAMES.has(tool);
 }
 
-function isAntigravityMcpRequest(request: EffectAcpSchema.RequestPermissionRequest): boolean {
-  if (typeof unknownRecord(request.toolCall.rawInput)?.CommandLine === "string") return false;
-  const toolCall = parsePermissionRequest(request).toolCall;
-  return (
-    ANTIGRAVITY_MCP_CALL_TITLE.test(request.toolCall.title?.trim() ?? "") ||
-    (toolCall !== undefined && extractMcpToolCallIdentity(toolCall) !== undefined)
-  );
-}
-
 export function antigravityPermissionDisposition(
   policy: AcpRuntimePolicy,
   request: EffectAcpSchema.RequestPermissionRequest,
 ) {
   const disposition = acpPermissionDisposition(policy, request);
   if (disposition === "deny") return "deny";
-  const autoApproves = policy.approvalPolicy === undefined || policy.approvalPolicy === "never";
   // T3 authorizes its own MCP server, so Auto and Auto-accept edits run it unasked, as Claude does.
   if (
     (policy.runtimeMode === "auto" || policy.runtimeMode === "auto-accept-edits") &&
-    autoApproves &&
+    (policy.approvalPolicy === undefined || policy.approvalPolicy === "never") &&
     isAntigravityT3McpRequest(request)
   ) {
     return "allow";
   }
-  if (policy.runtimeMode !== "auto") return disposition;
-  // agy's Auto escalates every MCP call; like Codex's MCP approvals, Auto lets them run.
-  if (autoApproves && isAntigravityMcpRequest(request)) return disposition;
-  // agy's Auto has already reviewed what it sends; the user decides.
-  return "ask";
+  // agy's Auto has already reviewed what it sends; the user decides unless the sandbox forbids it.
+  return policy.runtimeMode === "auto" ? "ask" : disposition;
 }
 
 /** The runtime mode an Antigravity session mode grants; the inverse of `antigravityPermissionMode`. */

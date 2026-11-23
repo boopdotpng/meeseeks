@@ -112,24 +112,6 @@ describe("Antigravity Auto", () => {
     );
   });
 
-  it.each([
-    { title: "Run mcp_t3-code_t3_thread_read" },
-    { title: "Run mcp_github_create_issue?" },
-    {
-      title: "MCP Tool create_issue",
-      rawInput: { ServerName: "github", ToolName: "create_issue" },
-    },
-  ])("allows MCP tools in Auto: $title", (toolCallFields) => {
-    const request = {
-      sessionId: "session-1",
-      toolCall: { toolCallId: "call-1", kind: "execute", ...toolCallFields },
-      options: [{ optionId: "allow", name: "Allow", kind: "allow_once" }],
-    } satisfies EffectAcpSchema.RequestPermissionRequest;
-    expect(antigravityPermissionDisposition({ runtimeMode: "auto", cwd: null }, request)).toBe(
-      "allow",
-    );
-  });
-
   it.each([{ type: "readOnly" }, { type: "workspaceWrite", writableRoots: [] }])(
     "keeps the $type sandbox's denials in Auto",
     (sandboxPolicy) => {
@@ -179,24 +161,16 @@ describe("Antigravity Auto", () => {
           ),
         ).toBe("deny");
       }
-      expect(
-        antigravityPermissionDisposition(
-          policy,
-          request("Run mcp_t3-code_preview_status", {
-            CommandLine: "Run mcp_t3-code_preview_status",
-          }),
-        ),
-      ).toBe("ask");
-      // Auto also runs other servers' MCP calls; Auto-accept edits leaves them to the user.
-      for (const otherServerCall of [
+      for (const otherCall of [
         // Names no server, so another MCP server's tool of the same name looks identical.
         request("Running preview_status"),
         request("Run mcp_github_create_issue"),
         request("MCP Tool preview_status", { ServerName: "other", ToolName: "preview_status" }),
+        request("Run mcp_t3-code_preview_status", {
+          CommandLine: "Run mcp_t3-code_preview_status",
+        }),
       ]) {
-        expect(antigravityPermissionDisposition(policy, otherServerCall)).toBe(
-          runtimeMode === "auto" ? "allow" : "ask",
-        );
+        expect(antigravityPermissionDisposition(policy, otherCall)).toBe("ask");
       }
     },
   );
