@@ -34,7 +34,8 @@ it.effect("a policy with telemetry off stops relay tracing to T3 Connect", () =>
 );
 
 it("reports the server's relay tracing policy to clients", () => {
-  assert.isTrue(allowedFor({}, undefined));
+  assert.isFalse(allowedFor({}, undefined));
+  assert.isTrue(allowedFor({ T3CODE_TELEMETRY_ENABLED: "true" }, undefined));
   assert.isFalse(allowedFor({ T3CODE_TELEMETRY_ENABLED: "false" }, undefined));
   assert.isFalse(
     allowedFor(
