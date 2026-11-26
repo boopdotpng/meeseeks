@@ -9,6 +9,8 @@ export interface ContextUsageReport {
   readonly totalTokens: number;
   /** Categories that occupy the window, in Claude Code's order; excludes free space. */
   readonly categories: ReadonlyArray<ContextUsageCategory>;
+  /** Tool definitions counted but not loaded until the model searches for them. */
+  readonly deferred: ReadonlyArray<ContextUsageCategory>;
   readonly freeTokens: number;
   readonly autocompactBufferTokens: number;
   /** The per-item tables (MCP tools, memory files, skills, …) after the category table. */
@@ -18,6 +20,7 @@ export interface ContextUsageReport {
 const HEADING = /^\s*## Context Usage\s*$/m;
 const TOKENS_LINE = /^\*\*Tokens:\*\*\s*([\d.,]+[km]?)\s*\/\s*([\d.,]+[km]?)/im;
 const MODEL_LINE = /^\*\*Model:\*\*\s*(.+)$/im;
+const DEFERRED_SUFFIX = /\s*\(deferred\)$/i;
 const ROW = /^\|\s*([^|]+?)\s*\|\s*([\d.,]+[km]?)\s*\|\s*[\d.]+%\s*\|\s*$/i;
 
 function parseTokenCount(value: string): number | null {
@@ -41,6 +44,7 @@ export function parseContextUsageReport(markdown: string): ContextUsageReport | 
   const lines = markdown.split("\n");
   const tableStart = lines.findIndex((line) => /^###\s+Estimated usage by category/i.test(line));
   const categories: ContextUsageCategory[] = [];
+  const deferred: ContextUsageCategory[] = [];
   let freeTokens = 0;
   let autocompactBufferTokens = 0;
   let detailsStart = lines.length;
@@ -58,7 +62,9 @@ export function parseContextUsageReport(markdown: string): ContextUsageReport | 
       const name = row[1]!;
       if (name === "Free space") freeTokens = count;
       else if (name === "Autocompact buffer") autocompactBufferTokens = count;
-      else categories.push({ name, tokens: count });
+      else if (DEFERRED_SUFFIX.test(name)) {
+        deferred.push({ name: name.replace(DEFERRED_SUFFIX, ""), tokens: count });
+      } else categories.push({ name, tokens: count });
     }
   }
 
@@ -67,6 +73,7 @@ export function parseContextUsageReport(markdown: string): ContextUsageReport | 
     usedTokens,
     totalTokens,
     categories,
+    deferred,
     freeTokens,
     autocompactBufferTokens,
     detailsMarkdown: lines.slice(detailsStart).join("\n").trim(),

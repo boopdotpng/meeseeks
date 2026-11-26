@@ -113,6 +113,14 @@ export function ContextUsageChart({
           </span>
         </li>
       </ul>
+      {report.deferred.length === 0 ? null : (
+        <p className="mt-1.5 text-muted-foreground/70">
+          <T>Not loaded until used:</T>{" "}
+          {report.deferred
+            .map((entry) => `${entry.name} ${formatContextWindowTokens(entry.tokens)}`)
+            .join(" · ")}
+        </p>
+      )}
       {report.detailsMarkdown.length === 0 ? null : (
         <details className="mt-2">
           <summary className="cursor-pointer text-muted-foreground">

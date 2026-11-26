@@ -13,6 +13,7 @@ const REPORT = `## Context Usage
 | System prompt | 2k | 0.2% |
 | System tools | 5.8k | 0.6% |
 | MCP tools | 1,250 | 0.1% |
+| MCP tools (deferred) | 11k | 1.1% |
 | Messages | 32.2k | 3.2% |
 | Free space | 925.8k | 92.6% |
 | Autocompact buffer | 33k | 3.3% |
@@ -35,6 +36,7 @@ describe("parseContextUsageReport", () => {
         { name: "MCP tools", tokens: 1_250 },
         { name: "Messages", tokens: 32_200 },
       ],
+      deferred: [{ name: "MCP tools", tokens: 11_000 }],
       freeTokens: 925_800,
       autocompactBufferTokens: 33_000,
       detailsMarkdown:
