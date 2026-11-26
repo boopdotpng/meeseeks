@@ -1545,8 +1545,8 @@ export const layerMcpTransport = <RA, RE, RR>(registrations: Layer.Layer<RA, RE,
 
 /**
  * Every tool the T3 MCP server advertises. AgentContextBudget.test.ts measures this set.
- * Fork: only delegation, scheduling, messaging and what the CLI, peers and workflows call.
- * Preview, device, HTML, pull request, issue, theme, environment, worktree and attachment
+ * Fork: only delegation, scheduling, messaging, attachments and what the CLI, peers and
+ * workflows call. Preview, device, HTML, pull request, issue, theme, environment and worktree
  * toolkits stay defined but unregistered, so upstream merges stay small.
  */
 export const layerTools = Layer.mergeAll(
@@ -1556,11 +1556,11 @@ export const layerTools = Layer.mergeAll(
   layerProjectRegistration,
   layerFeedbackToolkit,
   layerMessageToolkit,
+  layerAttachmentToolkit,
 );
 
 const _unregisteredTools = Layer.mergeAll(
   layerPreviewToolkit,
-  layerAttachmentToolkit,
   layerEnvironmentToolkit,
   layerThemeToolkit,
   layerPreviewControlsRegistration,
