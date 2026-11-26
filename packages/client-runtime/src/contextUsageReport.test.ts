@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
-import { parseContextUsageReport } from "./contextUsageReport";
+import { parseContextUsageReport } from "./contextUsageReport.ts";
 
 const REPORT = `## Context Usage
 
