@@ -2733,7 +2733,7 @@ it.effect(
         assert.equal(resolved?.thread.threadId, threadId);
         assert.deepEqual(
           resolved?.capabilities,
-          new Set(["preview", "orchestration", "worktree", "pull-requests", "issues"]),
+          new Set(["orchestration", "worktree", "pull-requests", "issues"]),
         );
 
         assert.isFalse(yield* captured!.hasPendingWake!);
@@ -6069,29 +6069,6 @@ it.effect(
     }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
 );
 
-it.effect(
-  "ProviderSessionManagerV2 applies project device access independently of browser access",
-  () =>
-    Effect.gen(function* () {
-      const enabled = yield* runBrowserAccessScenario({
-        enableAgentBrowserAccess: false,
-        projectOverride: false,
-        deviceOverride: true,
-        enableDeviceSupport: true,
-      });
-      assert.isTrue(enabled?.capabilities?.has("device"));
-      assert.isFalse(enabled?.browserToolsAvailable);
-      const denied = yield* runBrowserAccessScenario({
-        enableAgentBrowserAccess: false,
-        projectOverride: false,
-        deviceOverride: true,
-        enableDeviceSupport: true,
-        projectExists: false,
-      });
-      assert.isFalse(denied?.capabilities?.has("device"));
-    }),
-);
-
 it.effect("ProviderSessionManagerV2 withholds device tools while device support is off", () =>
   Effect.gen(function* () {
     const global = yield* runBrowserAccessScenario({
@@ -6125,19 +6102,5 @@ it.effect("ProviderSessionManagerV2 withholds device tools while device support 
       missingProject?.capabilities?.has("device"),
       "agent device access granted device tools with device support off for a missing project",
     );
-  }),
-);
-
-// Device instructions reach delegated children only because their own sessions hold `device`.
-it.effect("ProviderSessionManagerV2 gives a delegated child its project's device access", () =>
-  Effect.gen(function* () {
-    const child = yield* runBrowserAccessScenario({
-      enableAgentBrowserAccess: false,
-      projectOverride: false,
-      deviceOverride: true,
-      enableDeviceSupport: true,
-      delegatedBy: ThreadId.make("thread-provider-session-manager-parent"),
-    });
-    assert.isTrue(child?.capabilities?.has("device"));
   }),
 );

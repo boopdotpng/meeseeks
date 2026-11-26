@@ -224,6 +224,14 @@ function restartCancelledWork(work: ReadonlyArray<Work> | undefined): ReadonlyAr
   return (work ?? []).filter((entry) => entry.stoppedByUser !== true);
 }
 
+/** The run's delegated tasks may include ones a Stop interrupted. */
+export function cohortWasStopped(run: Pick<OrchestrationV2Run, "delegatedCompletion">): boolean {
+  return (
+    run.delegatedCompletion?.disposition === "stopped" ||
+    run.delegatedCompletion?.reopenedAfterStop === true
+  );
+}
+
 /**
  * Delegated tasks a Stop on this provider thread interrupted, until a turn requested after they
  * ended completes. A run's turn start reads tasks after its request, but can record startedAt
@@ -239,11 +247,7 @@ export function pendingStoppedDelegatedTasks(input: {
 }): ReadonlyArray<OrchestrationV2Subagent> {
   const stoppedRunIds = new Set(
     input.runs
-      .filter(
-        (run) =>
-          run.providerThreadId === input.providerThreadId &&
-          run.delegatedCompletion?.disposition === "stopped",
-      )
+      .filter((run) => run.providerThreadId === input.providerThreadId && cohortWasStopped(run))
       .map((run) => run.id),
   );
   if (stoppedRunIds.size === 0) return [];

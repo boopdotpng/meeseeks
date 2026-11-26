@@ -624,8 +624,12 @@ export const layerWithOptions = (
               threadId,
               Effect.gen(function* () {
                 // Live providers build MCP clients once; reuse credentials across workspace handoffs.
+                // Fork: McpHttpServer.layerTools serves no preview or device tools, so no
+                // session holds them and no adapter sends their instructions.
                 const { browser: browserToolsAvailable, device: deviceToolsAvailable } =
-                  yield* agentAccessSettings(threadId);
+                  yield* agentAccessSettings(threadId).pipe(
+                    Effect.as({ browser: false, device: false }),
+                  );
                 const capabilities = new Set<
                   import("../mcp/McpInvocationContext.ts").McpCapability
                 >(["orchestration", "worktree", "pull-requests", "issues"]);
